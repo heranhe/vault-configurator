@@ -84,6 +84,10 @@ export const DEFAULT_PALETTE: Record<ColorSlot, string> = {
   内衬: '10104',
 };
 
+/** 进入爆炸查看时，爆炸程度从 0 展开到最大的时长 */
+const EXPLODE_MS = 1400;
+let explodeRaf = 0;
+
 export const useStore = create<State>((set, get) => ({
   placements: saved?.placements ?? [],
   past: [],
@@ -175,8 +179,24 @@ export const useStore = create<State>((set, get) => ({
     }
   },
 
-  setExplode: (id) => set({ explodeId: id, selectedId: id ?? get().selectedId }),
-  setExplodeT: (t) => set({ explodeT: t }),
+  setExplode: (id) => {
+    cancelAnimationFrame(explodeRaf);
+    set({ explodeId: id, selectedId: id ?? get().selectedId });
+    if (!id) return;
+    // 展开动画：缓出曲线，开头快、结尾慢慢停住
+    const t0 = performance.now();
+    const tick = () => {
+      const k = Math.min(1, (performance.now() - t0) / EXPLODE_MS);
+      set({ explodeT: 1 - (1 - k) ** 3 });
+      if (k < 1) explodeRaf = requestAnimationFrame(tick);
+    };
+    tick();
+  },
+  // 用户拖滑块时停掉展开动画，以手动为准
+  setExplodeT: (t) => {
+    cancelAnimationFrame(explodeRaf);
+    set({ explodeT: t });
+  },
   setXray: (on) => set({ xray: on }),
   setColorScope: (colorScope) => set({ colorScope }),
   notify: (text, kind = 'info') => set({ toast: { text, kind, at: Date.now() } }),
