@@ -88,7 +88,7 @@ function ModelWelcome() {
           <div className="demo-grid">
             {DEMO_SPECS.map((spec, i) => (
               <button key={i} className="demo-choice" onClick={() => useStore.getState().clickAdd(spec)}>
-                <img src={`/thumbs/${spec.type}-S-${'height' in spec ? spec.height : 1}F.webp`} alt="" />
+                <img src={`${import.meta.env.BASE_URL}thumbs/${spec.type}-S-${'height' in spec ? spec.height : 1}F.webp`} alt="" />
                 <span>{specName(spec)}</span><small>＋ 添加</small>
               </button>
             ))}

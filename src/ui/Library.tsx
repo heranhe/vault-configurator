@@ -35,7 +35,7 @@ export function thumbKey(spec: UnitSpec) {
 /** 缩略图：优先用随网站发布的预渲染图，没有时退回按比例画的正视简图 */
 function Thumb({ spec }: { spec: UnitSpec }) {
   const [failed, setFailed] = useState(false);
-  if (!failed) return <img className="thumb" src={`/thumbs/${thumbKey(spec)}.webp`} alt="" draggable={false} onError={() => setFailed(true)} />;
+  if (!failed) return <img className="thumb" src={`${import.meta.env.BASE_URL}thumbs/${thumbKey(spec)}.webp`} alt="" draggable={false} onError={() => setFailed(true)} />;
   return <ThumbSvg spec={spec} />;
 }
 

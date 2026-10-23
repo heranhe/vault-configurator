@@ -1,0 +1,123 @@
+VAULT 配置器 · 离线版  /  VAULT Configurator · Offline Edition
+版本 Version {{VERSION}}  ·  构建日期 Build date {{DATE}}
+
+（English below）
+
+==============================================================
+中文
+==============================================================
+
+VAULT 配置器用于搭建 VAULT 模块化收纳系统的组合方案：在 3D 里叠放
+抽屉、收纳箱、顶盖和底座，查看爆炸图和安装步骤，并自动生成打印清单
+和紧固件采购清单。离线版无需安装、无需联网。
+
+【打开】
+1. 先完整解压「VAULT配置器-离线版.zip」。
+   Windows：右键 → 全部解压缩。不要在压缩包预览里直接双击打开。
+2. 打开解压出来的文件夹，双击「VAULT配置器.html」。
+3. 推荐浏览器：Chrome、Edge、Safari（最新版）。
+   默认浏览器不是这几个时：右键「VAULT配置器.html」→ 打开方式 →
+   选择 Chrome / Edge / Safari。
+
+注意：整个文件夹要保持完整。HTML 依赖同目录下的 demo-models、
+thumbs、examples、guides 文件夹，只拷走 HTML 无法使用。
+
+【使用】
+- 体验单元：内置 4 款基础单元（S5 1F / 2F 抽屉、S5 1F / 2F 收纳箱），
+  打开即可搭建。
+- 全部规格：点右上角「未连接打印文件夹」，在弹窗里点「把整个模型文件夹
+  拖到这里，或点击选择文件夹」（也可以直接把文件夹拖进去），选择你已
+  购买的 VAULT 模型文件夹，即可使用全部宽度、深度、顶盖和底座。
+- 搭建：点零件库卡片添加，连续点击一层层往上叠；也可以把卡片拖进 3D
+  场景。拖动单元可移动整列。
+- 爆炸图 / 安装流程：选中单元后点「爆炸查看」或「安装流程 ▶」。
+- 打印清单：底部列出需要打印的文件、份数和颜色，以及紧固件采购数量。
+- 导出：「清单 CSV」导出表格；「打包下载」把方案需要的 STL 按颜色
+  分好打成 zip（需先连接模型文件夹）。
+
+【数据与隐私】
+- 模型文件只在你的电脑上读取，不会上传到任何地方。
+- 方案自动保存在当前浏览器里。换浏览器、使用无痕窗口或清除浏览器数据
+  后不会保留；需要备份时请用「打包下载」，压缩包里带有「方案.json」。
+- 本工具不包含 VAULT 的打印模型文件，打印文件需向原作者购买。
+
+【常见问题】
+- 页面空白或没有样式：确认已完整解压，并从解压后的文件夹打开；换用
+  Chrome / Edge / Safari 再试。
+- 只显示灰色方块：体验模型正在加载，稍等几秒；一直不出现时检查
+  demo-models 文件夹是否还在。
+- 选择文件夹没反应：部分浏览器会弹出确认框，请点「上传 / 允许」。
+  文件只在本机读取，不会真的上传。
+- 其他规格显示为方块：需要先连接模型文件夹，并确认里面有对应的 STL。
+
+【作者】
+工具作者：迷途醉猫
+小红书：https://www.xiaohongshu.com/user/profile/56587f61b8ce1a583ad11678
+
+
+==============================================================
+English
+==============================================================
+
+The VAULT Configurator helps you plan builds for the VAULT modular
+storage system: stack drawers, sustainers, roofs and bases in 3D, view
+exploded diagrams and assembly steps, and get an automatic print list
+and fastener shopping list. The offline edition needs no installation
+and no internet connection.
+
+[Opening it]
+1. Fully extract "VAULT配置器-离线版.zip" first.
+   Windows: right-click -> Extract All. Do not double-click the file
+   from inside the zip preview.
+2. Open the extracted folder and double-click "VAULT配置器.html".
+3. Recommended browsers: Chrome, Edge or Safari (latest version).
+   If your default browser is something else: right-click
+   "VAULT配置器.html" -> Open with -> Chrome / Edge / Safari.
+
+Note: keep the whole folder together. The HTML file needs the
+demo-models, thumbs, examples and guides folders next to it; the HTML
+file alone will not work.
+
+[Using it]
+- Demo units: four basic units (S5 1F / 2F drawers, S5 1F / 2F
+  sustainers) are built in and ready to use.
+- All sizes: click "未连接打印文件夹" (no print folder connected) at the
+  top right, then click the box "把整个模型文件夹拖到这里，或点击选择文件夹"
+  (drop the whole model folder here, or click to choose), or drag the
+  folder onto it. Pick your purchased VAULT model folder to unlock every
+  width, depth, roof and base.
+- Building: click a library card to add it; keep clicking to stack
+  upward. You can also drag a card into the 3D scene, and drag a unit
+  to move its whole column.
+- Exploded view / assembly: select a unit, then click "爆炸查看"
+  (exploded view) or "安装流程 ▶" (assembly steps).
+- Print list: the bottom panel lists the files, copies and colours to
+  print, plus how many fasteners to buy.
+- Export: "清单 CSV" exports the list as a spreadsheet; "打包下载" zips
+  the STL files your build needs, grouped by colour (requires a
+  connected model folder).
+
+[Data and privacy]
+- Model files are read on your computer only and are never uploaded.
+- Your build is saved automatically in the current browser. It is not
+  kept if you switch browsers, use a private window or clear browser
+  data. To back it up, use "打包下载"; the zip includes "方案.json".
+- This tool does not include the VAULT print files. Please buy them
+  from the original designer.
+
+[Troubleshooting]
+- Blank page or no styling: make sure the zip is fully extracted and
+  you opened the HTML from the extracted folder; try Chrome, Edge or
+  Safari.
+- Grey boxes instead of real models: the demo models are still loading;
+  wait a few seconds. If they never appear, check that the demo-models
+  folder is still there.
+- Choosing a folder does nothing: some browsers ask for confirmation;
+  click "Upload" / "Allow". Files are only read locally, nothing is
+  actually uploaded.
+- Other sizes show as boxes: connect your model folder first and make
+  sure it contains the matching STL files.
+
+[Author]
+Made by 迷途醉猫
+Xiaohongshu: https://www.xiaohongshu.com/user/profile/56587f61b8ce1a583ad11678

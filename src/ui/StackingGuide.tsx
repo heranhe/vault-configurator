@@ -33,7 +33,7 @@ export function StackingGuide({ onClose }: { onClose: () => void }) {
       </div>
       <img
         className="stacking-guide-image"
-        src="/guides/stacking-options-zh.webp"
+        src={`${import.meta.env.BASE_URL}guides/stacking-options-zh.webp`}
         width={1060}
         height={410}
         alt="说明书叠加示意图：不同高度的模组可以叠放，收纳箱和抽屉可以混搭，XL 宽度对应 S 加 M，L 宽度对应两个 S。"

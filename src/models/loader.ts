@@ -1,5 +1,7 @@
 // 按需预览：本地 STL 简化或在线轻量网格 → 内存缓存 + OPFS 磁盘缓存
 import type { SimplifyRequest, SimplifyResult } from './stl.worker';
+// 内联成 blob Worker：离线版从 file:// 打开时，浏览器不允许再加载单独的 Worker 文件
+import StlWorker from './stl.worker.ts?worker&inline';
 import { lookup, type ModelSource } from './source';
 import { normPath, resolveFile } from '../core/catalog';
 
@@ -26,7 +28,7 @@ function pump() {
 }
 
 function newSlot() {
-  const w = new Worker(new URL('./stl.worker.ts', import.meta.url), { type: 'module' });
+  const w = new StlWorker();
   const slot = { w, busy: false };
   w.onmessage = (e: MessageEvent<SimplifyResult>) => {
     const p = pending.get(e.data.id);

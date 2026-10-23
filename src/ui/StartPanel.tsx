@@ -19,7 +19,7 @@ export function useStartPanelInit() {
 
 function ExampleImage({ id }: { id: string }) {
   const [failed, setFailed] = useState(false);
-  return failed ? <div className="ex-img ex-img-empty">预览图生成中</div> : <img className="ex-img" src={`/examples/${id}.webp`} alt="" onError={() => setFailed(true)} />;
+  return failed ? <div className="ex-img ex-img-empty">预览图生成中</div> : <img className="ex-img" src={`${import.meta.env.BASE_URL}examples/${id}.webp`} alt="" onError={() => setFailed(true)} />;
 }
 
 export function StartPanel() {
