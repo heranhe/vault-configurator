@@ -1,4 +1,4 @@
-import { CameraControls, ContactShadows, Environment, Grid, Lightformer } from '@react-three/drei';
+import { CameraControls, Environment, Grid, Lightformer } from '@react-three/drei';
 import { EffectComposer, N8AO, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 import { Canvas, useThree } from '@react-three/fiber';
@@ -216,7 +216,6 @@ function Studio() {
           <shadowMaterial opacity={0.28} />
         </mesh>
       )}
-      <ContactShadows position={[0, 0.1, 0]} scale={5000} resolution={1024} far={capture ? 40 : 220} blur={capture ? 1 : 2} opacity={capture ? 0.35 : 0.6} color="#2a2c33" />
       <EffectComposer multisampling={4} enableNormalPass={false}>
         <N8AO aoRadius={22} distanceFalloff={0.6} intensity={2.4} quality="medium" halfRes />
         <ToneMapping mode={ToneMappingMode.NEUTRAL} />
