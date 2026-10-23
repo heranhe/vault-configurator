@@ -181,6 +181,8 @@ function DragGrid() {
 
 /** 影棚灯光：参考官网渲染图。柔光箱环境反射 + 左前方主光投影 + 环境光遮蔽，避免发白、发平 */
 function Studio() {
+  // 生成缩略图时不画投影：长投影会被当成产品的一部分裁进去，产品就显得很小
+  const capture = useStore((s) => s.capture);
   return (
     <>
       <color attach="background" args={[STUDIO_BG]} />
@@ -208,11 +210,13 @@ function Studio() {
       {/* 补光：右侧弱冷光 */}
       <directionalLight position={[900, 400, 400]} intensity={0.35} color="#dfe8ff" />
       {/* 只接收阴影的地面，看不见地面本身 */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.3, 0]} receiveShadow>
-        <planeGeometry args={[20000, 20000]} />
-        <shadowMaterial opacity={0.28} />
-      </mesh>
-      <ContactShadows position={[0, 0.1, 0]} scale={5000} resolution={1024} far={220} blur={2} opacity={0.6} color="#2a2c33" />
+      {!capture && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.3, 0]} receiveShadow>
+          <planeGeometry args={[20000, 20000]} />
+          <shadowMaterial opacity={0.28} />
+        </mesh>
+      )}
+      <ContactShadows position={[0, 0.1, 0]} scale={5000} resolution={1024} far={capture ? 40 : 220} blur={capture ? 1 : 2} opacity={capture ? 0.35 : 0.6} color="#2a2c33" />
       <EffectComposer multisampling={4} enableNormalPass={false}>
         <N8AO aoRadius={22} distanceFalloff={0.6} intensity={2.4} quality="medium" halfRes />
         <ToneMapping mode={ToneMappingMode.NEUTRAL} />
