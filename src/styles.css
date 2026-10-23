@@ -121,6 +121,35 @@ select.pill { appearance: none; padding-right: 12px; }
 .drop-tip.ok { background: #d8efe0; color: var(--ink); }
 .drop-tip.bad { background: #f7d5cd; color: var(--ink); }
 .part-label { white-space: nowrap; font-family: var(--mono); font-size: 11px; font-weight: 600; background: var(--pill); color: var(--ink); border: 1px solid var(--ink); padding: 2px 7px; border-radius: 999px; pointer-events: none; box-shadow: 1.5px 1.5px 0 var(--ink); }
+/* 爆炸 / 安装流程的标注层：在画布之上、浮动面板之下 */
+.callouts { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+.callouts .part-label { position: absolute; left: 0; top: 0; pointer-events: auto; cursor: pointer; transition: background .12s, color .12s; }
+.callouts .part-label:hover { background: var(--yellow); }
+.callouts .part-label.on { background: #ff8a1f; color: #fff; }
+.callout-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.callout-lines polyline { fill: none; stroke: var(--ink); stroke-width: 1; opacity: .7; }
+.callout-lines circle { fill: var(--pill); stroke: var(--ink); stroke-width: 1.2; }
+.callout-lines g.on polyline { stroke: #ff8a1f; stroke-width: 2; opacity: 1; }
+.callout-lines g.on circle { fill: #ff8a1f; stroke: #ff8a1f; }
+
+/* 安装流程：3D 区下方的步骤说明和控制条 */
+.asm { pointer-events: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 6px; }
+.asm-card { align-self: center; max-width: min(640px, 100%); background: rgba(245, 240, 229, .94); border: 1px solid var(--ink); border-radius: 8px; box-shadow: 3px 3px 0 var(--ink); padding: 8px 12px; }
+.asm-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.asm-no { font-family: var(--mono); font-size: 11.5px; font-weight: 700; background: var(--ink); color: var(--pill); border-radius: 999px; padding: 1px 8px; }
+.asm-title { font-weight: 750; font-size: 15px; color: var(--ink); }
+.asm-ref { margin-left: auto; font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+.asm-note { margin: 4px 0 0; font-size: 13px; line-height: 1.55; color: var(--ink); }
+.asm-bar { display: flex; align-items: center; gap: 10px; }
+.asm-steps { display: flex; gap: 6px; overflow-x: auto; flex: 1; min-width: 0; padding: 2px 3px 5px; }
+.asm-step { position: relative; overflow: hidden; flex: none; font-family: var(--mono); font-size: 11.5px; font-weight: 700; color: var(--ink); background: var(--pill); border: 1px solid var(--ink); border-radius: 999px; padding: 4px 10px; box-shadow: 2px 2px 0 var(--ink); cursor: pointer; }
+.asm-step.done { background: var(--mint); }
+.asm-step.on { background: var(--ink); color: var(--pill); }
+.asm-step .asm-play { font-size: 9px; margin-left: 2px; }
+.asm-progress { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: #ff8a1f; transform-origin: left; }
+/* 相对 .stage-overlay 定位：右上角、提示条下方，竖排 */
+.asm-nav { position: absolute; top: 64px; right: 6px; display: flex; flex-direction: column; gap: 8px; width: 112px; pointer-events: auto; }
+.asm-nav .pill { width: 100%; text-align: center; padding: 7px 10px; }
 
 /* ---------- 右侧 ---------- */
 .right { grid-column: 3; overflow: auto; padding: 14px; }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { resolveFile } from './catalog';
 import { DEPTHS, heightsFor, ROOF_TYPES, WIDTH_MM, WIDTHS } from './dims';
+import { assemblyOf, poseAt } from './assembly';
 import { partsOf } from './parts';
 import { boxOf, columnOf, dropOnGround, dropOnUnit, intersects, supportsOf } from './rules';
 import { EXAMPLES } from '../data/examples';
@@ -112,4 +113,67 @@ describe('示例方案', () => {
       for (const u of units) if (u.pos[1] > 0) expect(supportsOf(u, units).length).toBeGreaterThan(0);
     });
   }
+});
+
+describe('零件数量', () => {
+  const qtyOf = (spec: UnitSpec, name: string) =>
+    partsOf(spec).flatMap((p) => p.files).filter((f) => f.path.includes(name)).reduce((n, f) => n + f.qty, 0);
+
+  it('左右成对的零件已合在一个文件里，每个单元只打 1 份', () => {
+    // 实测：导槽、滑块、下铰链、L-XL 上铰链、连杆的打印文件里都并排放着两件
+    expect(qtyOf(drawer('S'), 'Runner Guides')).toBe(1);
+    expect(qtyOf(drawer('XL'), 'Runner Slides')).toBe(1);
+    expect(qtyOf(drawer('S'), 'Runner Stopper')).toBe(2);
+    const sus = (width: Width): UnitSpec => ({ type: 'sustainer', width, depth: 5, height: 2, interior: 'flat' });
+    expect(qtyOf(sus('S'), 'Hinges/S-M 2-4F Hinge')).toBe(1);
+    expect(qtyOf(sus('L'), 'Hinge Top')).toBe(1);
+  });
+
+  it('拆件显示的零件，代理块数等于文件里的件数', () => {
+    for (const p of [...partsOf(drawer('M')), ...partsOf({ type: 'sustainer', width: 'L', depth: 5, height: 1, interior: 'flat' })])
+      if (p.split) expect(p.blocks.length).toBe(2);
+  });
+});
+
+describe('安装流程', () => {
+  const specs: UnitSpec[] = [
+    drawer('S'), drawer('M', 5, 2), { type: 'drawer', width: 'L', depth: 5, height: 4, interior: 'baseplate' },
+    { type: 'sustainer', width: 'S', depth: 5, height: 2, interior: 'flat' },
+    { type: 'sustainer', width: 'L', depth: 5, height: 1, interior: 'dividers' },
+    { type: 'roof', width: 'L', depth: 5, roof: 'heavyweight' },
+    { type: 'base', width: 'M', depth: 5, mode: 'wheels' },
+    { type: 'base', width: 'S', depth: 5, mode: 'feet' },
+  ];
+
+  it('最后一步播完，每个零件都在装好的位置', () => {
+    for (const spec of specs) {
+      const steps = assemblyOf(spec);
+      for (const part of partsOf(spec)) {
+        const pose = poseAt(steps, steps.length - 1, 1, part.id);
+        expect(pose.visible, `${spec.type} ${part.id}`).toBe(true);
+        expect(pose.offset, `${spec.type} ${part.id}`).toEqual([0, 0, 0]);
+      }
+    }
+  });
+
+  it('零件在第一次被放置之前不显示，进场时从 from 的位置飞过来', () => {
+    const steps = assemblyOf(drawer('S'));
+    expect(poseAt(steps, 0, 0, 'module').visible).toBe(false);
+    const enter = poseAt(steps, 0, 0, 'key');
+    expect(enter.visible).toBe(true);
+    expect(enter.offset[2]).toBeGreaterThan(poseAt(steps, 0, 1, 'key').offset[2]);
+  });
+});
+
+describe('面板螺栓', () => {
+  it('螺栓数按实测沉孔数，面板盖 = 孔数 − 被标签盖住的 1 个', () => {
+    const n = (spec: UnitSpec) => ({
+      bolts: partsOf(spec).find((p) => p.id === 'bolts')!.blocks.length / 2,
+      caps: partsOf(spec).find((p) => p.id === 'caps')!.files[0].qty,
+    });
+    expect(n(drawer('S'))).toEqual({ bolts: 2, caps: 1 });
+    expect(n(drawer('S', 5, 2))).toEqual({ bolts: 4, caps: 3 });
+    expect(n(drawer('M'))).toEqual({ bolts: 4, caps: 3 });
+    expect(n(drawer('L', 5, 4))).toEqual({ bolts: 6, caps: 5 });
+  });
 });

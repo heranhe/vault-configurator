@@ -4,7 +4,9 @@ import { dimsOf } from './core/dims';
 import { boxOf } from './core/rules';
 import { Scene } from './scene/Scene';
 import { useStore } from './store';
+import { AssemblyBar } from './ui/AssemblyBar';
 import { BomPanel } from './ui/BomPanel';
+import { Callouts } from './ui/Callouts';
 import { Library } from './ui/Library';
 import { RightPanel } from './ui/RightPanel';
 import { SourceChip, SourceDialog, useSourceInit } from './ui/SourceDialog';
@@ -53,11 +55,13 @@ function Readouts() {
 function StageCaption() {
   const placements = useStore((s) => s.placements);
   const explodeId = useStore((s) => s.explodeId);
+  const assembly = useStore((s) => !!s.assembly);
   const drag = useStore((s) => s.drag);
   let text = '从左侧把单元拖到台面上，或连续点击卡片一层层往上叠。';
   if (placements.length) text = '拖动单元可以移动整列；靠近顶面会吸附，放不下的地方会变红并说明原因。双击单元查看爆炸图。';
   if (drag) text = '松手放下 · 绿色 = 可以放 · 红色 = 放不下 · Esc 取消';
-  if (explodeId) text = '爆炸查看：只展开这一个单元。拖右侧滑块控制展开程度，Esc 退出。';
+  if (explodeId) text = '爆炸查看：点零件或标签高亮它。拖右侧滑块控制展开程度，Esc 退出。';
+  if (assembly) text = '安装流程：下方每一步都可以重播，← → 切换上一步 / 下一步，Esc 退出。';
   return <div className="stage-caption">{text}</div>;
 }
 
@@ -68,6 +72,7 @@ export function App() {
   const future = useStore((s) => s.future.length);
   const xray = useStore((s) => s.xray);
   const placements = useStore((s) => s.placements.length);
+  const asmOn = useStore((s) => !!s.assembly);
   const { undo, redo, setXray, fitView, clearAll } = useStore.getState();
 
   useEffect(() => {
@@ -82,6 +87,7 @@ export function App() {
       } else if (e.key === 'Escape' && !st.drag) {
         if (st.sourceDialog) useStore.setState({ sourceDialog: false });
         else if (st.startOpen) useStore.setState({ startOpen: false });
+        else if (st.assembly) st.stopAssembly();
         else if (st.explodeId) st.setExplode(null);
         else st.select(null);
       }
@@ -96,6 +102,7 @@ export function App() {
       <div className="canvas-layer">
         <Scene />
       </div>
+      <Callouts />
 
       <header className="topbar">
         <div className="brand">VAULT 配置器</div>
@@ -124,7 +131,7 @@ export function App() {
               <button className="pill pill-yellow" onClick={() => useStore.setState({ startOpen: true })}>看看示例方案</button>
             </div>
           )}
-          <Readouts />
+          {asmOn ? <AssemblyBar /> : <Readouts />}
         </section>
         <RightPanel />
       </main>

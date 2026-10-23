@@ -36,6 +36,13 @@ type State = {
   /** 开始面板（新手引导 + 新建 + 示例） */
   startOpen: boolean;
   fitNonce: number;
+  /** 爆炸 / 安装流程里被点名高亮的零件 id */
+  focusPart: string | null;
+  /**
+   * 安装流程：unitId 的第 step 步播放到 t（0～1，超过 1 是步间停顿）。
+   * chain = 播完自动进入下一步（刚打开时先完整播一遍）
+   */
+  assembly: { unitId: string; step: number; t: number; playing: boolean; chain: boolean } | null;
 
   commit: (next: Placement[]) => void;
   undo: () => void;
@@ -57,6 +64,11 @@ type State = {
   clearAll: () => void;
   loadExample: (placements: Placement[]) => void;
   fitView: () => void;
+  setFocusPart: (id: string | null) => void;
+  startAssembly: (unitId: string) => void;
+  /** 从头播放第 step 步（只播这一步） */
+  playStep: (step: number) => void;
+  stopAssembly: () => void;
 };
 
 let seq = 1;
@@ -107,6 +119,8 @@ export const useStore = create<State>((set, get) => ({
   sourceDialog: false,
   startOpen: false,
   fitNonce: 0,
+  focusPart: null,
+  assembly: null,
 
   commit: (next) => set((s) => ({ placements: next, past: [...s.past.slice(-99), s.placements], future: [] })),
   undo: () =>
@@ -181,7 +195,7 @@ export const useStore = create<State>((set, get) => ({
 
   setExplode: (id) => {
     cancelAnimationFrame(explodeRaf);
-    set({ explodeId: id, selectedId: id ?? get().selectedId });
+    set({ explodeId: id, selectedId: id ?? get().selectedId, focusPart: null, assembly: null });
     if (!id) return;
     // 展开动画：缓出曲线，开头快、结尾慢慢停住
     const t0 = performance.now();
@@ -192,6 +206,12 @@ export const useStore = create<State>((set, get) => ({
     };
     tick();
   },
+  setFocusPart: (focusPart) => set({ focusPart }),
+  // 安装流程借用爆炸查看的「只显示这一个单元 + 重新取景」
+  startAssembly: (unitId) =>
+    set({ explodeId: unitId, selectedId: unitId, focusPart: null, assembly: { unitId, step: 0, t: 0, playing: true, chain: true } }),
+  playStep: (step) => set((s) => (s.assembly ? { focusPart: null, assembly: { ...s.assembly, step, t: 0, playing: true, chain: false } } : s)),
+  stopAssembly: () => set({ assembly: null, explodeId: null, focusPart: null }),
   // 用户拖滑块时停掉展开动画，以手动为准
   setExplodeT: (t) => {
     cancelAnimationFrame(explodeRaf);

@@ -14,7 +14,8 @@ export function RightPanel() {
   const explodeT = useStore((s) => s.explodeT);
   const palette = useStore((s) => s.palette);
   const scope = useStore((s) => s.colorScope);
-  const { setExplode, setExplodeT, setColor, setColorScope, removeSelected, updateSpec } = useStore.getState();
+  const assemblyId = useStore((s) => s.assembly?.unitId ?? null);
+  const { setExplode, setExplodeT, setColor, setColorScope, removeSelected, updateSpec, startAssembly, stopAssembly } = useStore.getState();
   const [openSlot, setOpenSlot] = useState<ColorSlot | null>('结构');
 
   const sel = placements.find((p) => p.id === selectedId);
@@ -55,17 +56,26 @@ export function RightPanel() {
                 </select>
               </label>
             )}
-            {explodeId === sel.id ? (
+            {assemblyId === sel.id ? (
+              <div className="explode-box">
+                <p className="muted small">正在播放安装流程，3D 区下方可以逐步重播。</p>
+                <button className="pill pill-dark wide" onClick={stopAssembly}>退出安装流程（Esc）</button>
+              </div>
+            ) : explodeId === sel.id ? (
               <div className="explode-box">
                 <div className="row">
                   <span>爆炸程度</span>
                   <input type="range" min={0} max={1} step={0.01} value={explodeT} onChange={(e) => setExplodeT(+e.target.value)} />
                 </div>
-                <button className="pill pill-dark wide" onClick={() => setExplode(null)}>完成（Esc）</button>
+                <div className="btn-row">
+                  <button className="pill pill-dark" onClick={() => setExplode(null)}>完成（Esc）</button>
+                  <button className="pill" onClick={() => startAssembly(sel.id)}>安装流程 ▶</button>
+                </div>
               </div>
             ) : (
               <div className="btn-row">
                 <button className="pill pill-yellow" onClick={() => setExplode(sel.id)}>爆炸查看 ↗</button>
+                <button className="pill pill-dark" onClick={() => startAssembly(sel.id)}>安装流程 ▶</button>
                 <button className="pill pill-danger" onClick={removeSelected}>删除</button>
               </div>
             )}

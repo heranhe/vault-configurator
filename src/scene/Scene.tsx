@@ -1,11 +1,15 @@
 import { CameraControls, Environment, Grid, Lightformer } from '@react-three/drei';
 import { EffectComposer, N8AO, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { assemblyOf, assemblyOffsets } from '../core/assembly';
+import { partsOf, type Block } from '../core/parts';
 import { boxOf } from '../core/rules';
+import type { Vec3 } from '../core/types';
 import { useStore } from '../store';
+import { callouts, EXPLODE_GAIN, screenAnchors } from './callouts';
 import { controls } from './controls';
 import { DragController } from './DragController';
 import { UnitView } from './UnitView';
@@ -49,6 +53,24 @@ function unitsBox(ids?: string[]) {
   return box;
 }
 
+/** 单元爆炸到最大、或安装流程里零件走过的全部位置的包围盒（世界坐标） */
+function spreadBox(id: string, assembly: boolean) {
+  const p = useStore.getState().placements.find((x) => x.id === id);
+  const box = unitsBox([id]);
+  if (!p) return box;
+  const at = new THREE.Vector3(...p.pos);
+  const add = (b: Block, off: Vec3) =>
+    box.union(new THREE.Box3(new THREE.Vector3(...b.at).add(at).add(new THREE.Vector3(...off)), new THREE.Vector3(...b.at).add(new THREE.Vector3(...b.size)).add(at).add(new THREE.Vector3(...off))));
+  const parts = partsOf(p.spec);
+  if (assembly) {
+    const offsets = assemblyOffsets(assemblyOf(p.spec));
+    for (const part of parts) for (const b of part.blocks) for (const off of offsets) add(b, off);
+  } else {
+    for (const part of parts) for (const b of part.blocks) add(b, part.explode.map((v) => v * EXPLODE_GAIN) as Vec3);
+  }
+  return box;
+}
+
 /**
  * 让包围盒尽量占满画面：在指定角度下，求出所有角点都落在视锥内的最小距离。
  * （camera-controls 的 fitToBox 会把视角吸到轴向，fitToSphere 又留白太多）
@@ -84,6 +106,7 @@ export function fitBox(box: THREE.Box3, az: number, polar: number, smooth = true
 function CameraRig() {
   const ref = useRef<CameraControls>(null);
   const explodeId = useStore((s) => s.explodeId);
+  const asmOn = useStore((s) => !!s.assembly);
   const fitNonce = useStore((s) => s.fitNonce);
   const count = useStore((s) => s.placements.length);
   const { size } = useThree();
@@ -118,18 +141,58 @@ function CameraRig() {
   useEffect(() => {
     if (!ref.current) return;
     if (explodeId) {
-      const box = unitsBox([explodeId]);
-      box.max.z += 260; // 爆炸后零件主要向前（+Z）展开
-      box.max.y += 60;
-      box.min.y -= 60;
-      fitBox(box, ...VIEW_PRESETS['斜视']);
+      // 取景范围 = 爆炸到最大（或安装流程走过的所有位置）时零件占到的范围；两侧再留出标注的位置
+      fitBox(spreadBox(explodeId, !!useStore.getState().assembly), ...VIEW_PRESETS['斜视'], true, 1.3);
     } else {
       const { viewAngle } = useStore.getState();
       fitBox(unitsBox(), ...(viewAngle ?? VIEW_PRESETS['产品图']));
     }
-  }, [explodeId, fitNonce, count, size.width, size.height, layoutNonce]);
+  }, [explodeId, asmOn, fitNonce, count, size.width, size.height, layoutNonce]);
 
   return <CameraControls ref={ref} makeDefault minDistance={120} maxDistance={8000} maxPolarAngle={Math.PI / 2 - 0.02} dollyToCursor smoothTime={0.25} />;
+}
+
+/** 每帧把爆炸单元各零件的锚点投影到屏幕，交给 HTML 标注层画引线 */
+function CalloutTracker() {
+  const v = useMemo(() => new THREE.Vector3(), []);
+  useFrame(({ camera, gl }) => {
+    const explodeId = useStore.getState().explodeId;
+    if (!explodeId) {
+      if (screenAnchors.size) screenAnchors.clear();
+      return;
+    }
+    const r = gl.domElement.getBoundingClientRect();
+    for (const [key, c] of callouts) {
+      if (c.unitId !== explodeId) continue;
+      v.copy(c.anchor);
+      c.group.localToWorld(v);
+      v.project(camera);
+      let visible = v.z < 1;
+      for (let o: THREE.Object3D | null = c.group; o && visible; o = o.parent) visible = o.visible;
+      screenAnchors.set(key, { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height, visible });
+    }
+    for (const key of screenAnchors.keys()) if (!callouts.has(key)) screenAnchors.delete(key);
+  });
+  return null;
+}
+
+/** 安装流程的时钟：每步播 STEP_S 秒，连播时步间停 HOLD_S 秒 */
+const STEP_S = 1.8;
+const HOLD_S = 0.7;
+function AssemblyDriver() {
+  useFrame((_, dt) => {
+    const { assembly: a, placements } = useStore.getState();
+    if (!a?.playing) return;
+    const p = placements.find((x) => x.id === a.unitId);
+    if (!p) return useStore.setState({ assembly: null });
+    const n = assemblyOf(p.spec).length;
+    const t = a.t + Math.min(dt, 0.05) / STEP_S;
+    const end = a.chain ? 1 + HOLD_S / STEP_S : 1;
+    if (t < end) return useStore.setState({ assembly: { ...a, t } });
+    if (a.chain && a.step < n - 1) return useStore.setState({ assembly: { ...a, step: a.step + 1, t: 0 } });
+    useStore.setState({ assembly: { ...a, t: 1, playing: false, chain: false } });
+  });
+  return null;
 }
 
 /** 开发辅助：暴露相机和渲染器，用于标定零件朝向和生成缩略图 */
@@ -247,6 +310,8 @@ export function Scene() {
         <UnitView key={p.id} p={p} />
       ))}
       <DragController />
+      <CalloutTracker />
+      <AssemblyDriver />
       <CameraRig />
       {import.meta.env.DEV && <DevHooks />}
     </Canvas>

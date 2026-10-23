@@ -1,5 +1,5 @@
 // 每个最小单元由哪些零件组成：代理几何（预览/爆炸用）+ 对应的打印文件（清单用）
-import { BASE_BODY_MM, BASE_LIFT_MM, dimsOf } from './dims';
+import { BASE_BODY_MM, BASE_LIFT_MM, dimsOf, heightMM } from './dims';
 import type { OrientHint } from '../models/orient';
 import type { ColorSlot, UnitSpec, Vec3 } from './types';
 
@@ -10,8 +10,11 @@ export type PartFile = {
   uncertain?: boolean; // 数量【待确认】
 };
 
-/** 一块代理几何：相对单元最小角的盒子 */
-export type Block = { at: Vec3; size: Vec3; round?: boolean };
+/**
+ * 一块代理几何：相对单元最小角的盒子。flip = 这一块的真实模型改用的翻转（度），如右侧导轨；
+ * cyl = 画成沿 Z 轴（前后方向）的圆柱，直径取 size[0]，用于螺栓
+ */
+export type Block = { at: Vec3; size: Vec3; round?: boolean; flip?: Vec3; cyl?: boolean };
 
 export type Part = {
   id: string;
@@ -25,10 +28,14 @@ export type Part = {
    * each = 每个代理块各放一份 files[0]（左右导轨、两个锁等）；none = 只用代理块
    */
   real?: 'union' | 'each' | 'none';
+  /** each 时：files[0] 里已经并排放着 blocks.length 件（如左右导轨一个文件），拆开后一件对一块 */
+  split?: boolean;
   /** 真实模型的朝向修正（对照官网图和爆炸图标定） */
   orient?: OrientHint;
   /** 固定颜色（不参与配色），如 TPU 轮胎 */
   fixedColor?: string;
+  /** 外购五金件（螺栓等）：只画示意，不进打印清单（数量见 hardwareOf） */
+  hardware?: boolean;
 };
 
 const D_FAM = { S: '01. S Families', M: '02. M Families', L: '03. L Families', XL: '05. XL Families' };
@@ -39,6 +46,36 @@ const ROOF_FILE = { grid: 'Grid', table: 'Table', bowl: 'Bowl', underTable: 'Und
 const INTERIOR_FILE = { flat: 'Flat', dividers: 'Dividers', sealed: 'Sealed' };
 
 const T = 4; // 代理模型壁厚
+
+/** 螺栓（模型包里没有，按 M4 内六角画）：头部在 headZ 往前，杆身往后 len。前后方向安装 */
+function bolt(x: number, y: number, headZ: number, len: number, head = 2.6): Block[] {
+  return [
+    { at: [x - 3.5, y - 3.5, headZ], size: [7, 7, head], cyl: true },
+    { at: [x - 2, y - 2, headZ - len], size: [4, 4, len], cyl: true },
+  ];
+}
+
+// 抽屉面板正面的 M4 沉孔（实测，已换成装配方向：x 距左沿，y 距面板下沿）。
+// 每个孔都是 Ø4 通孔 + Ø9.8 × 4.1 沉台；第一个孔在标签槽里、被标签盖住，其余孔压面板盖（Facade Cap Ø9.8）
+const DRAWER_HOLES_X = { S: [31, 133.8], M: [34.5, 75.5, 178.5, 219.5], L: [34.6, 113.4, 216.4, 295.1], XL: [39.8, 158.1, 260.8, 379.1] };
+const DRAWER_HOLES_UP_X = { S: [31, 133.8], M: [34.5, 219.5], L: [34.6, 295.1], XL: [] as number[] };
+
+/** 抽屉面板上的螺栓孔（相对面板左下角） */
+export function drawerHoles(spec: Extract<UnitSpec, { type: 'drawer' }>): [number, number][] {
+  const faceH = heightMM(spec.height) - 10;
+  return [
+    ...DRAWER_HOLES_X[spec.width].map((x) => [x, 23.5] as [number, number]),
+    ...(spec.height > 1 ? DRAWER_HOLES_UP_X[spec.width].map((x) => [x, faceH - 23.5] as [number, number]) : []),
+  ];
+}
+
+/** 收纳箱面板上固定到模组的 M4 通孔（实测，相对面板左下角）：两侧各一列，4F 中间多一排，L/XL 底边正中多一颗 */
+function sustainerHoles(W: UnitSpec['width'], H: 1 | 2 | 4, w: number, faceH: number): [number, number][] {
+  const ys = [20.8, faceH - 5.7, ...(H === 4 ? [94.8] : [])];
+  const out = ys.flatMap((y) => [[5.1, y], [w - 5.1, y]] as [number, number][]);
+  if (W === 'L' || W === 'XL') out.push([w / 2, 5]);
+  return out;
+}
 
 /** 开口朝前的外壳（底、顶、左、右、后） */
 function shell(w: number, h: number, d: number, openTop = false): Block[] {
@@ -72,10 +109,17 @@ function drawerParts(spec: Extract<UnitSpec, { type: 'drawer' }>): Part[] {
   const split = W === 'XL' && D >= 6;
   const runner = W === 'XL' ? `XL${D}` : `x${D}`;
   const boxH = h - 2 * T - 6;
-  const boxZ = T + 3;
-  const boxD = d - boxZ - 12;
+  // 实测：模组后壁约 2.3 厚，盒体（S5 深 227.8）从后壁一直到模组前沿；面板 10 厚，整块挡在模组前面
+  const boxZ = 2.3;
+  const boxD = d - boxZ;
   const pull = d * 0.85;
-  const band = h - 57 / 2; // 最上面 1F 高度带的中线：锁孔和标签都在这里
+  const faceY = 5.2; // 面板下沿 = 模组前沿口的下沿（实测 5.2～h-4.8，面板高 h-10）
+  // 面板按装配方向摆好后（打印文件绕深度轴转 180°），锁孔和标签槽都在最下面 1F 高度带：
+  // 锁孔中心在宽度正中、面板下沿上方 23.6；标签槽中心距面板左沿 28、同样高 23.6，槽深 2.1
+  const band = faceY + 23.6;
+  const guideT = W === 'XL' ? 14.6 : 9.4; // 导轨导槽厚度（实测）
+  const guideL = d - 2.6;
+  const holes = drawerHoles(spec);
 
   const parts: Part[] = [
     {
@@ -85,6 +129,7 @@ function drawerParts(spec: Extract<UnitSpec, { type: 'drawer' }>): Part[] {
     {
       id: 'box', name: `${code} ${H}F 盒体`, slot: '盒体', real: split ? 'none' : 'union', blocks: tray(T + 4, T + 2, boxZ, w - 2 * T - 8, boxH, boxD),
       explode: [0, 0, pull],
+      orient: { post: [0, 0, 180] }, // 同收纳箱盒体：导出时开口朝下，翻过来
       files: split
         ? [{ path: `${dir}/Boxes/${code} Box 1F Part 1.stl`, qty: 1 }, { path: `${dir}/Boxes/${code} Box 1F Part 2.stl`, qty: 1 }]
         : [
@@ -93,39 +138,61 @@ function drawerParts(spec: Extract<UnitSpec, { type: 'drawer' }>): Part[] {
           ],
     },
     {
-      id: 'facade', name: `${W} ${H}F 面板`, slot: '面板', blocks: [{ at: [2, 2, d - 12], size: [w - 4, h - 4, 10], round: true }],
+      id: 'facade', name: `${W} ${H}F 面板`, slot: '面板', blocks: [{ at: [0, faceY, d], size: [w, h - 10, 10], round: true }],
       explode: [0, 0, pull + 70],
+      // 打印文件里标签槽在右、锁孔带在上；装配时绕深度轴转 180°，标签到左下（对照官网图）
+      orient: { post: [0, 0, 180] },
       files: [
         W === 'XL'
           ? { path: `01. DRAWERS/${D_FAM.XL}/XL Facade 1F.stl`, qty: 1, supports: true }
           : { path: `01. DRAWERS/${D_FAM[W]}/Facades/${W}${H}F (Turn On Supports).stl`, qty: 1, supports: true },
-        { path: `${DU}/Facade Cap.stl`, qty: 1, uncertain: true },
       ],
     },
     {
-      id: 'key', name: '钥匙锁 + 钥匙帽', slot: '功能件', blocks: [{ at: [w / 2 - 22, band - 18, d - 14], size: [45, 36.5, 33.4], round: true }],
+      // 说明书第 7 步：螺栓从正面穿过面板拧进盒体，头部落在沉台底（面板前表面往里 4.1）
+      id: 'bolts', name: `M4×14 螺栓 ×${holes.length}`, slot: '功能件', hardware: true, real: 'none', fixedColor: '10101',
+      blocks: holes.flatMap(([x, y]) => bolt(x, faceY + y, d + 5.9, 14)),
+      explode: [0, 0, pull + 100],
+      files: [],
+    },
+    {
+      // 说明书第 8 步：标签盖住左下那颗螺栓，其余每个沉孔压一个面板盖，正面看就是官网图上的浅色小圆
+      id: 'caps', real: 'each', name: `面板盖 ×${holes.length - 1}`, slot: '面板',
+      blocks: holes.slice(1).map(([x, y]) => ({ at: [x - 4.9, faceY + y - 4.9, d + 10 - 3.8], size: [9.8, 9.8, 3.8] }) as Block),
+      explode: [0, 0, pull + 125],
+      files: [{ path: `${DU}/Facade Cap.stl`, qty: holes.length - 1 }],
+    },
+    {
+      // 实测：钥匙前段圆台 Ø34.7、长 3.5，正好嵌进面板锁孔最前面 Ø34.2、深 4 的一段，圆台前端和面板前表面齐平，
+      // 只有握把露在外面。圆台前端离钥匙后端 18.1，所以钥匙后端在面板前表面往里 18.1 = d + 10 - 18.1
+      id: 'key', name: '钥匙锁 + 钥匙帽', slot: '功能件', blocks: [{ at: [w / 2 - 22.5, band - 18.25, d - 8.1], size: [45, 36.5, 33.4], round: true }],
       explode: [0, 0, pull + 150],
       files: [{ path: `${DU}/Key (Turn On Supports).stl`, qty: 1, supports: true }, { path: `${DU}/Key Cap.stl`, qty: 1 }],
     },
     {
       id: 'springs', name: '弹簧', slot: '功能件', real: 'none', // 藏在面板背后，预览不显示真实模型
-      blocks: [{ at: [w / 2 - 50, band - 10, d - 22], size: [18, 20, 8] }, { at: [w / 2 + 32, band - 10, d - 22], size: [18, 20, 8] }],
+      blocks: [{ at: [w / 2 - 50, band - 10, d + 1], size: [18, 20, 5] }, { at: [w / 2 + 32, band - 10, d + 1], size: [18, 20, 5] }],
       explode: [0, 40, pull + 30],
       files: [{ path: `${DU}/Springs.stl`, qty: 1, uncertain: true }],
     },
     {
-      id: 'label', name: '标签', slot: '标签', blocks: [{ at: [14, band - 10, d - 1], size: [47.9, 20.6, 2] }],
+      id: 'label', name: '标签', slot: '标签', blocks: [{ at: [28 - 47.9 / 2, band - 20.6 / 2, d + 10 - 2.1], size: [47.9, 20.6, 2] }],
       explode: [0, 30, pull + 110],
       files: [{ path: `${DU}/Label.stl`, qty: 1 }],
     },
     {
-      id: 'runners', real: 'each', name: '导轨导槽 / 滑块 / 限位块', slot: '功能件',
-      blocks: [{ at: [T, T + 1, 12], size: [9.4, 55.7 - 4, d - 30] }, { at: [w - T - 9.4, T + 1, 12], size: [9.4, 55.7 - 4, d - 30] }],
+      // 导槽 / 滑块文件里都已并排放着左右两件（实测两件完全相同），所以各打 1 份；
+      // 右侧那件绕深度轴转 180° 就是左侧的镜像（导槽上下对称）。限位块左右各一（说明书第 11 步）
+      id: 'runners', real: 'each', split: true, name: '导轨导槽 / 滑块 / 限位块', slot: '功能件',
+      blocks: [
+        { at: [5.9, band - 13.5, boxZ], size: [guideT, 27, guideL] },
+        { at: [w - 5.9 - guideT, band - 13.5, boxZ], size: [guideT, 27, guideL], flip: [0, 0, 180] },
+      ],
       explode: [0, 0, pull * 0.5],
       files: [
-        { path: `${DU}/Runners/${runner} Runner Guides.stl`, qty: 2, uncertain: true },
-        { path: `${DU}/Runners/${runner} Runner Slides.stl`, qty: 2, uncertain: true },
-        { path: `${DU}/Runners/Runner Stopper.stl`, qty: 1, uncertain: true },
+        { path: `${DU}/Runners/${runner} Runner Guides.stl`, qty: 1 },
+        { path: `${DU}/Runners/${runner} Runner Slides.stl`, qty: 1 },
+        { path: `${DU}/Runners/Runner Stopper.stl`, qty: 2 },
       ],
     },
     {
@@ -165,7 +232,14 @@ function sustainerParts(spec: Extract<UnitSpec, { type: 'sustainer' }>): Part[] 
     ? [H === 1 ? `${SU}/Hinges/L-XL 1F Hinge.stl` : `${SU}/Hinges/L 2-4F Hinge.stl`, `${SU}/Hinges/L-XL Hinge Top.stl`]
     : [`${SU}/Hinges/S-M ${hf} Hinge.stl`, `${SU}/Hinges/${W} Hinge Top.stl`];
 
-  const lockBlocks: Block[] = (wide ? [w * 0.25, w * 0.75] : [w / 2]).map((cx) => ({ at: [cx - 16, bodyH - 34, d], size: [32, 28, 10], round: true }));
+  // 面板（实测高 46 / 80 / 176，厚 10）挡在模组前面，上沿与模组上沿齐，箱盖前沿再盖住它（箱盖深 d + 10）
+  const faceH = { 1: 46, 2: 80, 4: 176 }[H];
+  const faceTop = bodyH;
+  const faceHoles = sustainerHoles(W, H, w, faceH);
+  // 标签槽（转 180° 后）：1F 在上沿开口、从上往下插；2F/4F 在左侧、中心距上沿 43.6。槽深 2.1
+  const labelCX = H === 1 ? { S: 29, M: 51.4, L: w / 2, XL: w / 2 }[W] : 27.8;
+  const labelCY = H === 1 ? faceTop - 20.1 / 2 : faceTop - 43.6;
+  const lockBlocks: Block[] = (wide ? [w * 0.25, w * 0.75] : [w / 2]).map((cx) => ({ at: [cx - 16, bodyH - 34, d + 6], size: [32, 28, 18], round: true }));
 
   const parts: Part[] = [
     {
@@ -179,9 +253,18 @@ function sustainerParts(spec: Extract<UnitSpec, { type: 'sustainer' }>): Part[] 
       files: [{ path: `${dir}/Roofs/${roofFile}`, qty: 1 }],
     },
     {
-      id: 'facade', name: `${W} ${H}F 面板`, slot: '面板', blocks: [{ at: [2, 2, d - 2], size: [w - 4, bodyH - 4, 6], round: true }],
+      id: 'facade', name: `${W} ${H}F 面板`, slot: '面板', blocks: [{ at: [0, faceTop - faceH, d], size: [w, faceH, 10], round: true }],
       explode: [0, 0, 80],
+      // 同抽屉面板：打印文件绕深度轴转 180° 才是装配方向（锁槽开口朝上、贯穿孔靠近箱盖，见说明书第 5 页）
+      orient: { post: [0, 0, 180] },
       files: [{ path: facadeFile, qty: 1 }],
+    },
+    {
+      // 说明书收纳箱第 9 步：M4×20 从正面把面板拧到模组上；没有沉孔，黑色螺栓头露在外面（对照官网图）
+      id: 'bolts', name: `M4×20 螺栓 ×${faceHoles.length}`, slot: '功能件', hardware: true, real: 'none', fixedColor: '10101',
+      blocks: faceHoles.flatMap(([x, y]) => bolt(x, faceTop - faceH + y, d + 10, 20, 2.2)),
+      explode: [0, 0, 110],
+      files: [],
     },
     {
       id: 'locks', real: 'each', name: `锁 ×${locks}`, slot: '功能件', blocks: lockBlocks, explode: [0, 0, 150],
@@ -194,17 +277,18 @@ function sustainerParts(spec: Extract<UnitSpec, { type: 'sustainer' }>): Part[] 
       ],
     },
     {
-      id: 'hinges', real: 'each', name: '铰链 + 连杆', slot: '功能件',
+      // 下铰链文件里就是一对（两件相同），L-XL 上铰链文件也是一对；S/M 上铰链是一整件，夹在两个下铰链之间
+      id: 'hinges', real: 'each', split: true, name: '铰链 + 连杆', slot: '功能件',
       blocks: [w * 0.25, w * 0.75].map((cx) => ({ at: [cx - 18, bodyH - 30, -8], size: [36, 40, 8] }) as Block),
       explode: [0, 60, -80],
       files: [
-        { path: hinge[0], qty: 2, uncertain: true },
-        { path: hinge[1], qty: 2, uncertain: true },
-        { path: `${SU}/Rods/${wide ? 'L-XL' : 'S-M'} Rods.stl`, qty: 1, uncertain: true },
+        { path: hinge[0], qty: 1 },
+        { path: hinge[1], qty: 1, uncertain: !wide },
+        { path: `${SU}/Rods/${wide ? 'L-XL' : 'S-M'} Rods.stl`, qty: 1 },
       ],
     },
     {
-      id: 'label', name: '收纳箱标签', slot: '标签', blocks: [{ at: [w / 2 - 22, 10, d + 4], size: [44, 12, 2] }],
+      id: 'label', name: '收纳箱标签', slot: '标签', blocks: [{ at: [labelCX - 38.1 / 2, labelCY - 20.1 / 2, d + 10 - 2.1], size: [38.1, 20.1, 2] }],
       explode: [0, -20, 130],
       files: [{ path: `${SU}/Label for Sustainers.stl`, qty: 1 }],
     },
@@ -300,7 +384,8 @@ export function partsOf(spec: UnitSpec): Part[] {
 
 /** 五金件（说明书第 3、17、18 页） */
 export function hardwareOf(spec: UnitSpec): Record<string, number> {
-  if (spec.type === 'drawer') return { 'M4×14mm 螺栓': spec.height === 1 ? 4 : 6 };
+  // 说明书写「1F ×4、2F/4F ×6」，是按 M/L 宽度算的；按各尺寸面板上实测的沉孔数取（S 1F 只有 2 个）
+  if (spec.type === 'drawer') return { 'M4×14mm 螺栓': drawerHoles(spec).length };
   if (spec.type === 'sustainer') return { 'M4×14mm 螺栓': 16, 'M4×10mm 螺栓': 8, 'M4×20mm 螺栓': 7 };
   if (spec.type === 'base') {
     const feet = spec.mode === 'wheels' ? 1 : 2;
