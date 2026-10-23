@@ -205,12 +205,9 @@ select.pill { appearance: none; padding-right: 12px; }
 .bom-title { border: 0; background: none; font-weight: 750; color: var(--ink); font-size: 16px; padding: 0; }
 .bom-focus { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; padding: 6px 14px; border-top: 1px dashed #d5ccb9; background: #fbe3c9; color: var(--ink); font-size: 12px; overflow-wrap: anywhere; }
 .bom-focus span { font-family: var(--mono); font-size: 11px; }
-.bom-body { display: flex; flex-direction: column; border-top: 1px solid rgba(35, 38, 58, 0.4); height: 204px; }
-/* 打印件 / 紧固件两个标签页，一次只显示一个 */
-.bom-tabs { flex: none; align-self: flex-start; margin: 8px 14px 0; }
-.bom-tabs button { flex: none; padding: 4px 12px; }
-.bom-body.show-print .bom-hw, .bom-body.show-hw .bom-groups { display: none; }
-.bom-groups { flex: 1; min-height: 0; display: flex; gap: 10px; overflow-x: auto; padding: 10px 14px; align-items: stretch; }
+.bom-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; border-top: 1px solid rgba(35, 38, 58, 0.4); height: 176px; }
+.bom-tabs { display: none; } /* 打印件 / 紧固件标签页只在手机布局出现 */
+.bom-groups { display: flex; gap: 10px; overflow-x: auto; padding: 10px 14px; align-items: stretch; }
 .bom-group { flex: 0 0 236px; display: flex; flex-direction: column; min-height: 0; border: 1px solid rgba(35, 38, 58, 0.5); border-radius: 8px; background: rgba(255, 250, 240, 0.8); }
 .bom-group header { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-bottom: 1px dashed #d5ccb9; color: var(--ink); font-size: 14px; }
 .bom-group ul { list-style: none; margin: 0; padding: 4px 0; overflow-y: auto; }
@@ -225,9 +222,7 @@ select.pill { appearance: none; padding-right: 12px; }
 .bom-group .fname { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bom-part.on .fname { white-space: normal; overflow-wrap: anywhere; }
 .bom-part-name { display: block; margin-top: 2px; font-family: var(--sans); font-size: 11px; }
-.bom-hw { flex: 1; min-height: 0; padding: 10px 14px; overflow: auto; }
-.bom-hw > * { max-width: 560px; }
-.bom-hw table { width: 100%; }
+.bom-hw { border-left: 1px solid rgba(35, 38, 58, 0.4); padding: 10px 14px; overflow: auto; background: rgba(239, 232, 216, 0.6); width: max-content; min-width: 230px; }
 .bom-hw h4 { margin: 0 0 6px; font-size: 15px; color: var(--ink); }
 .bom-hw table { border-collapse: collapse; margin: 0 0 6px; font-size: 13px; color: var(--ink); }
 .bom-hw th { font-family: var(--mono); font-size: 10.5px; font-weight: 600; color: var(--muted); text-align: left; padding: 2px 0; }
@@ -428,11 +423,14 @@ select.pill { appearance: none; padding-right: 12px; }
   .bom-bar { gap: 6px 8px; padding: 8px 12px; }
   .bom-title { font-size: 15px; }
   .bom-bar > .muted { flex-basis: 100%; order: 3; font-size: 11.5px; }
-  .bom-body { height: auto; flex: 1; min-height: 0; }
-  .bom-tabs { margin: 8px 12px 0; }
-  .bom-groups { padding: 10px 12px; }
+  /* 打印件 / 紧固件两个标签页，一次只显示一个 */
+  .bom-body { display: flex; flex-direction: column; height: auto; flex: 1; min-height: 0; }
+  .bom-tabs { display: flex; flex: none; align-self: flex-start; margin: 8px 12px 0; }
+  .bom-tabs button { flex: none; padding: 4px 12px; }
+  .bom-body.show-print .bom-hw, .bom-body.show-hw .bom-groups { display: none; }
+  .bom-groups { flex: 1; min-height: 0; padding: 10px 12px; }
   .bom-group { flex-basis: 210px; }
-  .bom-hw { padding: 10px 12px; }
+  .bom-hw { flex: 1; min-height: 0; width: auto; min-width: 0; border-left: 0; background: none; padding: 10px 12px; }
   .bom-hw-heading { flex-wrap: wrap; gap: 8px; }
   .bom-hw table { width: 100%; }
 
