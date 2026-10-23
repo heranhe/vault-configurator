@@ -13,6 +13,7 @@ import { SourceChip, SourceDialog, useSourceInit } from './ui/SourceDialog';
 import { DEMO_SPECS } from './models/demo';
 import { specName } from './core/dims';
 import { StartPanel } from './ui/StartPanel';
+import { LegalLink } from './ui/LegalDialog';
 import { MobileTabs, useMobile, type Sheet } from './ui/MobileTabs';
 
 function Toast() {
@@ -94,6 +95,7 @@ function ModelWelcome() {
             ))}
           </div>
           <div className="muted small welcome-model-note">其余规格需导入本地模型，打印导出需原始 STL。</div>
+          <div className="muted small welcome-legal">非官方辅助工具，不提供 VAULT 图纸。使用即表示同意<LegalLink /></div>
         </div>
       </div>
     </div>
@@ -155,6 +157,7 @@ export function App() {
         <div className="brand-block">
           <div className="brand">VAULT 配置器</div>
           <div className="brand-author">工具作者：迷途醉猫</div>
+          <LegalLink />
         </div>
         <a className="pill pill-xhs" href="https://www.xiaohongshu.com/user/profile/56587f61b8ce1a583ad11678" target="_blank" rel="noreferrer" title="迷途醉猫的小红书">小红书 ↗</a>
         <div className="top-mid">

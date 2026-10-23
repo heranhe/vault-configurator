@@ -448,3 +448,19 @@ select.pill { appearance: none; padding-right: 12px; }
   .modal { width: calc(100vw - 20px); padding: 18px 14px 14px; }
   .path-row { flex-wrap: wrap; }
 }
+
+/* ---------- 免责声明 / 隐私 ---------- */
+.legal-link { pointer-events: auto; align-self: flex-start; border: 0; background: none; padding: 0; font-size: 11px; line-height: 1.3; color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
+.legal-link:hover { color: var(--ink); }
+.legal-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.welcome-legal { margin-top: 6px; line-height: 1.6; }
+.welcome-legal .legal-link { display: inline; margin-left: 2px; }
+.legal { width: min(720px, calc(100vw - 32px)); }
+.legal h3 { font-size: 15px; margin: 4px 0 8px; }
+.legal section + section { margin-top: 18px; }
+.legal ol, .legal ul { margin: 0; padding-left: 22px; display: grid; gap: 8px; font-size: 13px; line-height: 1.65; }
+.legal li b { color: var(--ink); }
+.legal .stacking-guide-tip { margin-top: 18px; }
+@media (max-width: 720px) {
+  .brand-block .legal-link { font-size: 10px; white-space: nowrap; }
+}
