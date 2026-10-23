@@ -22,6 +22,7 @@ export function BomPanel() {
   const showHardwareLabels = useStore((s) => s.showHardwareLabels);
   const { notify } = useStore.getState();
   const [open, setOpen] = useState(true);
+  const [tab, setTab] = useState<'print' | 'hw'>('print');
   const [progress, setProgress] = useState<string | null>(null);
   const rowButtons = useRef(new Map<string, HTMLButtonElement>());
   const groupStrip = useRef<HTMLDivElement>(null);
@@ -31,7 +32,9 @@ export function BomPanel() {
   const focusedKeys = useMemo(() => new Set(focused?.rows.map((r) => r.key)), [focused]);
 
   useEffect(() => {
-    if (focused) setOpen(true);
+    if (!focused) return;
+    setOpen(true);
+    setTab(focused.rows.length ? 'print' : 'hw'); // 外购五金没有打印行，切到紧固件
   }, [focused]);
 
   useEffect(() => {
@@ -58,6 +61,7 @@ export function BomPanel() {
   const totalSize = rows.reduce((n, r) => n + r.size, 0);
   const missingLocal = source ? rows.filter((r) => !lookup(source, r.path)).length : 0;
   const hw = Object.entries(hardware);
+  const hwTotal = hw.reduce((n, [, v]) => n + v, 0);
 
   const downloadCsv = () => {
     const blob = new Blob([bomCsv(rows, hardware)], { type: 'text/csv;charset=utf-8' });
@@ -96,7 +100,11 @@ export function BomPanel() {
         <span>{focused.rows.length ? focused.rows.map((r) => shortName(r.fileName)).join(' · ') : '外购五金（见采购清单）'}</span>
       </div>}
       {open && rows.length > 0 && (
-        <div className="bom-body">
+        <div className={`bom-body show-${tab}`}>
+          <div className="bom-tabs seg" role="tablist">
+            <button role="tab" aria-selected={tab === 'print'} className={tab === 'print' ? 'on' : ''} onClick={() => setTab('print')}>打印件 {totalParts}</button>
+            <button role="tab" aria-selected={tab === 'hw'} className={tab === 'hw' ? 'on' : ''} onClick={() => setTab('hw')}>紧固件 {hwTotal}</button>
+          </div>
           <div className="bom-groups" ref={groupStrip}>
             {groups.length === 0 && <p className="muted empty">台面上还没有单元。从左侧拖一个进来。</p>}
             {groups.map(([colorId, list]) => {
