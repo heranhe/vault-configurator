@@ -67,7 +67,6 @@ export function App() {
   const past = useStore((s) => s.past.length);
   const future = useStore((s) => s.future.length);
   const xray = useStore((s) => s.xray);
-  const realModels = useStore((s) => s.realModels);
   const placements = useStore((s) => s.placements.length);
   const { undo, redo, setXray, fitView, clearAll } = useStore.getState();
 
@@ -105,9 +104,6 @@ export function App() {
           <button className="pill" onClick={undo} disabled={!past} title="撤销 Ctrl+Z">↶ 撤销</button>
           <button className="pill" onClick={redo} disabled={!future} title="重做 Ctrl+Shift+Z">↷</button>
           <button className={`pill ${xray ? 'pill-dark' : ''}`} onClick={() => setXray(!xray)}>X 光</button>
-          <button className={`pill ${realModels ? '' : 'pill-dark'}`} onClick={() => useStore.setState({ realModels: !realModels })} title="切换真实模型 / 简化方块">
-            {realModels ? '真实模型' : '简化方块'}
-          </button>
           <button className="pill" onClick={() => { useStore.setState({ viewAngle: null }); fitView(); }}>重置视角</button>
           <button className="pill" disabled={!placements} onClick={() => confirm('清空台面？可撤销') && clearAll()}>清空</button>
         </div>

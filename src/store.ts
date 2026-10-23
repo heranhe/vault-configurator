@@ -28,7 +28,6 @@ type State = {
   source: ModelSource | null;
   /** 本地服务器能否按路径读取（npm run dev 时为 true） */
   pathSupported: boolean;
-  realModels: boolean;
   /** 用户选的预设视角（方位角, 俯仰角），取景时沿用 */
   viewAngle: [number, number] | null;
   /** 开发用：生成缩略图时为 true */
@@ -99,7 +98,6 @@ export const useStore = create<State>((set, get) => ({
   toast: null,
   source: null,
   pathSupported: false,
-  realModels: true,
   viewAngle: null,
   capture: false,
   sourceDialog: false,
