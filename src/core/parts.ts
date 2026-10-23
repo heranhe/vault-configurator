@@ -170,10 +170,16 @@ function drawerParts(spec: Extract<UnitSpec, { type: 'drawer' }>): Part[] {
       files: [{ path: `${DU}/Key (Turn On Supports).stl`, qty: 1, supports: true }, { path: `${DU}/Key Cap.stl`, qty: 1 }],
     },
     {
-      id: 'springs', name: '弹簧', slot: '功能件', real: 'none', // 藏在面板背后，预览不显示真实模型
-      blocks: [{ at: [w / 2 - 50, band - 10, d + 1], size: [18, 20, 5] }, { at: [w / 2 + 32, band - 10, d + 1], size: [18, 20, 5] }],
+      // 说明书第 3 步：两片弹簧平面朝后压进面板背面锁孔两侧的槽里，各自顶住钥匙后面的凸轮。
+      // 实测：打印文件里并排两片，每片 47.5×37×5.2，厚的一端带销孔；面板背面槽深 5.8、外沿距中心 62.3（S/M/L 相同），
+      // 所以弹簧贴槽底放：z = d+0.6～d+5.8。文件里两片的销孔都朝 +x，左边那片绕深度轴转 180° 让销孔朝外
+      id: 'springs', name: '弹簧', slot: '功能件', real: 'each', split: true,
+      blocks: [
+        { at: [w / 2 - 62.3, band - 18.5, d + 0.6], size: [47.5, 37, 5.2], flip: [0, 0, 180] },
+        { at: [w / 2 + 14.8, band - 18.5, d + 0.6], size: [47.5, 37, 5.2] },
+      ],
       explode: [0, 40, pull + 30],
-      files: [{ path: `${DU}/Springs.stl`, qty: 1, uncertain: true }],
+      files: [{ path: `${DU}/Springs.stl`, qty: 1 }],
     },
     {
       id: 'label', name: '标签', slot: '标签', blocks: [{ at: [28 - 47.9 / 2, band - 20.6 / 2, d + 10 - 2.1], size: [47.9, 20.6, 2] }],
