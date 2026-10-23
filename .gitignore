@@ -4,3 +4,4 @@ dist
 .vault-local.json
 .shots
 *.tsbuildinfo
+tmp/
