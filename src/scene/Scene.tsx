@@ -10,6 +10,7 @@ import { boxOf } from '../core/rules';
 import type { Vec3 } from '../core/types';
 import { useStore } from '../store';
 import { callouts, EXPLODE_GAIN, screenAnchors } from './callouts';
+import { instanceExplodeOffset, partInstances, visibleParts } from './part-instances';
 import { controls } from './controls';
 import { DragController } from './DragController';
 import { UnitView } from './UnitView';
@@ -61,12 +62,15 @@ function spreadBox(id: string, assembly: boolean) {
   const at = new THREE.Vector3(...p.pos);
   const add = (b: Block, off: Vec3) =>
     box.union(new THREE.Box3(new THREE.Vector3(...b.at).add(at).add(new THREE.Vector3(...off)), new THREE.Vector3(...b.at).add(new THREE.Vector3(...b.size)).add(at).add(new THREE.Vector3(...off))));
-  const parts = partsOf(p.spec);
+  const parts = visibleParts(partsOf(p.spec));
   if (assembly) {
     const offsets = assemblyOffsets(assemblyOf(p.spec));
-    for (const part of parts) for (const b of part.blocks) for (const off of offsets) add(b, off);
+    for (const part of parts) for (const b of part.blocks) for (const off of offsets) {
+      add(b, off);
+      if (b.slide) add(b, off.map((v, k) => v + b.slide![k]) as Vec3);
+    }
   } else {
-    for (const part of parts) for (const b of part.blocks) add(b, part.explode.map((v) => v * EXPLODE_GAIN) as Vec3);
+    for (const part of parts) for (const instance of partInstances(part)) for (const b of instance.blocks) add(b, instanceExplodeOffset(instance, 1, EXPLODE_GAIN));
   }
   return box;
 }

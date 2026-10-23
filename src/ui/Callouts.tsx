@@ -1,8 +1,10 @@
 // 爆炸 / 安装流程的零件标注：标签排在单元左右两列，引线折一下指到零件上；点标签高亮对应零件
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { assemblyOf } from '../core/assembly';
 import { partsOf } from '../core/parts';
+import { instanceFocused, partInstances, labeledParts } from '../scene/part-instances';
 import { screenAnchors } from '../scene/callouts';
+import { calloutPage, calloutPageSize } from '../scene/callout-layout';
 import { useStore } from '../store';
 
 const GAP = 30; // 同一列相邻标签的最小间距（px）
@@ -13,19 +15,45 @@ export function Callouts() {
   const spec = useStore((s) => s.placements.find((p) => p.id === s.explodeId)?.spec);
   const step = useStore((s) => (s.assembly && s.assembly.unitId === s.explodeId ? s.assembly.step : -1));
   const focus = useStore((s) => s.focusPart);
+  const showHardwareLabels = useStore((s) => s.showHardwareLabels);
   const labels = useRef(new Map<string, HTMLButtonElement>());
   const lines = useRef(new Map<string, SVGPolylineElement>());
   const dots = useRef(new Map<string, SVGCircleElement>());
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
+  const [pagerPosition, setPagerPosition] = useState({ left: 0, top: 0 });
 
   // 安装流程只标这一步动到的零件；爆炸查看标全部
   const items = useMemo(() => {
     if (!explodeId || !spec) return [];
-    const parts = partsOf(spec);
-    if (step < 0) return parts.map((p) => ({ key: `${explodeId}/${p.id}`, id: p.id, name: p.name }));
+    const parts = labeledParts(partsOf(spec), showHardwareLabels);
+    const instances = parts.flatMap(partInstances);
+    if (step < 0) return instances.map((p) => ({ ...p, key: `${explodeId}/${p.id}` }));
     const s = assemblyOf(spec)[step];
     const ids = new Set([...Object.keys(s?.place ?? {}), ...(s?.focus ?? [])]);
-    return parts.filter((p) => ids.has(p.id)).map((p) => ({ key: `${explodeId}/${p.id}`, id: p.id, name: p.name }));
-  }, [explodeId, spec, step]);
+    return instances.filter((p) => ids.has(p.parentId)).map((p) => ({ ...p, key: `${explodeId}/${p.id}` }));
+  }, [explodeId, spec, step, showHardwareLabels]);
+
+  const paged = useMemo(() => calloutPage(items, page, pageSize), [items, page, pageSize]);
+  const visibleItems = paged.items;
+  useEffect(() => { setPage(0); }, [explodeId, spec, step, showHardwareLabels]);
+  useEffect(() => {
+    const index = items.findIndex((it) => instanceFocused(focus, it));
+    if (index >= 0) setPage(Math.floor(index / pageSize));
+  }, [focus, items, pageSize]);
+  useEffect(() => {
+    const stage = document.querySelector('.stage-overlay');
+    if (!stage) return;
+    const measure = () => {
+      const rect = stage.getBoundingClientRect();
+      setPageSize(calloutPageSize(rect.height));
+      setPagerPosition({ left: rect.left + rect.width / 2, top: rect.top + 48 });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, [explodeId]);
 
   useEffect(() => {
     if (!items.length) return;
@@ -36,16 +64,17 @@ export function Callouts() {
       // 爆炸刚开始展开时零件还挤在一起，先不出标签
       const shown = st.assembly ? true : st.explodeT > 0.25;
       const free = document.querySelector('.stage-overlay')?.getBoundingClientRect();
-      const pts = items
+      const pts = visibleItems
         .map((it) => ({ it, a: screenAnchors.get(it.key) }))
         .filter((p): p is { it: (typeof items)[number]; a: { x: number; y: number; visible: boolean } } => !!p.a && p.a.visible && shown);
-      const hide = new Set(items.map((i) => i.key));
+      const hide = new Set(visibleItems.map((i) => i.key));
       if (pts.length && free) {
-        const cx = pts.reduce((s, p) => s + p.a.x, 0) / pts.length;
         const minX = Math.min(...pts.map((p) => p.a.x)), maxX = Math.max(...pts.map((p) => p.a.x));
-        const top = free.top + 56, bottom = free.bottom - 70;
+        const top = free.top + (paged.pages > 1 ? 94 : 56), bottom = free.bottom - 70;
+        const ordered = [...pts].sort((a, b) => a.a.x - b.a.x);
+        const middle = Math.ceil(ordered.length / 2);
         for (const side of [-1, 1] as const) {
-          const col = pts.filter((p) => (side < 0 ? p.a.x < cx : p.a.x >= cx)).sort((a, b) => a.a.y - b.a.y);
+          const col = (side < 0 ? ordered.slice(0, middle) : ordered.slice(middle)).sort((a, b) => a.a.y - b.a.y);
           // 先往下推开重叠，再从底往上收回超出可视区的部分
           const ys = col.map((p) => Math.min(bottom, Math.max(top, p.a.y)));
           for (let i = 1; i < ys.length; i++) ys[i] = Math.max(ys[i], ys[i - 1] + GAP);
@@ -85,23 +114,29 @@ export function Callouts() {
     };
     tick();
     return () => cancelAnimationFrame(raf);
-  }, [items]);
+  }, [visibleItems, paged.pages]);
 
   if (!items.length) return null;
   return (
     <div className="callouts">
+      {paged.pages > 1 && <div className="callout-pager" style={{ position: 'fixed', ...pagerPosition, transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 8, pointerEvents: 'auto' }}>
+        <button className="pill" disabled={paged.current === 0} onClick={() => setPage(paged.current - 1)}>← 上一页</button>
+        <span className="chip-read" aria-live="polite">标注 {paged.current + 1}/{paged.pages} · 共 {items.length} 件</span>
+        <button className="pill" disabled={paged.current === paged.pages - 1} onClick={() => setPage(paged.current + 1)}>下一页 →</button>
+      </div>}
       <svg className="callout-lines">
-        {items.map((it) => (
-          <g key={it.key} className={focus === it.id ? 'on' : ''}>
+        {visibleItems.map((it) => (
+          <g key={it.key} className={instanceFocused(focus, it) ? 'on' : ''}>
             <polyline ref={(el) => void (el ? lines.current.set(it.key, el) : lines.current.delete(it.key))} style={{ display: 'none' }} />
             <circle r={3.2} ref={(el) => void (el ? dots.current.set(it.key, el) : dots.current.delete(it.key))} style={{ display: 'none' }} />
           </g>
         ))}
       </svg>
-      {items.map((it) => (
+      {visibleItems.map((it) => (
         <button
           key={it.key}
-          className={`part-label ${focus === it.id ? 'on' : ''}`}
+          className={`part-label ${instanceFocused(focus, it) ? 'on' : ''}`}
+          aria-pressed={instanceFocused(focus, it)}
           style={{ display: 'none' }}
           ref={(el) => void (el ? labels.current.set(it.key, el) : labels.current.delete(it.key))}
           onClick={() => useStore.getState().setFocusPart(focus === it.id ? null : it.id)}

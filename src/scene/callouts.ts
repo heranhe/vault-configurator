@@ -5,9 +5,9 @@ import type { Part } from '../core/parts';
 /** 爆炸距离放大倍数：零件定义里的 explode 是 t = 1 时的位移，整体再放大这么多 */
 export const EXPLODE_GAIN = 2;
 
-export type Callout = { unitId: string; partId: string; name: string; group: THREE.Group; anchor: THREE.Vector3 };
+export type Callout = { unitId: string; partId: string; pieceId: string; name: string; group: THREE.Group; anchor: THREE.Vector3 };
 
-/** 键 = `${unitId}/${partId}` */
+/** 键 = `${unitId}/${pieceId}`，每个独立实物都有自己的锚点。 */
 export const callouts = new Map<string, Callout>();
 
 /** 引线指向的点：零件第一块代理块的中心（多块零件如左右导轨，指向第一块） */

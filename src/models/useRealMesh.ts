@@ -26,19 +26,19 @@ function toGeometry(m: MeshData) {
 }
 
 /** 返回零件的真实几何（已简化）；没连接模型、找不到文件或还在加载时返回 null */
-export function useRealMesh(path: string | undefined, enabled: boolean) {
+export function useRealMesh(path: string | undefined, enabled: boolean, allowDemo = false) {
   const source = useStore((s) => s.source);
   const [geo, setGeo] = useState<THREE.BufferGeometry | null>(null);
   useEffect(() => {
     setGeo(null);
     if (!enabled || !path) return;
-    const p = loadMesh(source, path, true);
+    const p = loadMesh(source, path, true, allowDemo);
     if (!p) return;
     let alive = true;
-    p.then((m) => alive && setGeo(toGeometry(m))).catch((e) => console.warn('模型加载失败', path, e));
+    p.then((m) => alive && setGeo(m ? toGeometry(m) : null)).catch((e) => console.warn('模型加载失败', path, e));
     return () => {
       alive = false;
     };
-  }, [source, path, enabled]);
+  }, [source, path, enabled, allowDemo]);
   return geo;
 }

@@ -10,10 +10,14 @@ export type BomRow = {
   partName: string;
   colorId: string;
   qty: number;
+  piecesPerFile: number;
   supports: boolean;
   uncertain: boolean;
+  tooling: boolean;
   missingInCatalog: boolean;
   size: number;
+  /** 合并前的单元与场景零件，用于从清单定位爆炸图 */
+  targets: { unitId: string; partId: string }[];
 };
 
 export const colorOf = (p: Placement, slot: ColorSlot, palette: Record<ColorSlot, string>) => p.colors?.[slot] ?? palette[slot];
@@ -30,16 +34,25 @@ export function buildBom(placements: Placement[], palette: Record<ColorSlot, str
         const path = hit?.p ?? f.path;
         const key = `${path}|${colorId}`;
         const row = rows.get(key);
-        if (row) row.qty += f.qty;
+        if (row) {
+          // 定位工装可供同一方案内的多套轮组重复使用，不按底座数重复打印。
+          row.qty = part.tooling ? Math.max(row.qty, f.qty) : row.qty + f.qty;
+          if (!row.targets.some((t) => t.unitId === p.id && t.partId === part.id)) {
+            row.targets.push({ unitId: p.id, partId: part.id });
+          }
+        }
         else
           rows.set(key, {
             key, path, colorId, qty: f.qty,
+            piecesPerFile: f.pieces ?? 1,
             fileName: path.split('/').pop()!,
             partName: part.name,
             supports: !!f.supports || /turn on supports/i.test(path),
             uncertain: !!f.uncertain,
+            tooling: !!part.tooling,
             missingInCatalog: !hit,
             size: hit?.size ?? 0,
+            targets: [{ unitId: p.id, partId: part.id }],
           });
       }
     }
@@ -51,10 +64,10 @@ export function buildBom(placements: Placement[], palette: Record<ColorSlot, str
 
 export function bomCsv(rows: BomRow[], hardware: Record<string, number>) {
   const esc = (s: string | number) => `"${String(s).replace(/"/g, '""')}"`;
-  const lines = [['文件', '路径', '零件', '颜色', '色号', '数量', '需开支撑', '数量待确认'].map(esc).join(',')];
+  const lines = [['文件', '路径', '零件', '颜色', '色号', '打印份数', '每份件数', '零件总数', '需开支撑', '数量待确认'].map(esc).join(',')];
   for (const r of rows) {
     const c = colorById(r.colorId);
-    lines.push([r.fileName, r.path, r.partName, `${c.nameZh} ${c.nameEn}`, c.id, r.qty, r.supports ? '是' : '', r.uncertain ? '是' : ''].map(esc).join(','));
+    lines.push([r.fileName, r.path, r.partName, `${c.nameZh} ${c.nameEn}`, c.id, r.qty, r.piecesPerFile, r.qty * r.piecesPerFile, r.supports ? '是' : '', r.uncertain ? '是' : ''].map(esc).join(','));
   }
   lines.push('', [esc('五金件'), esc('数量')].join(','));
   for (const [k, n] of Object.entries(hardware)) lines.push([esc(k), esc(n)].join(','));

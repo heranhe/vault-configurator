@@ -1,8 +1,11 @@
-// 真实模型加载：读本地 STL → Worker 简化 → 内存缓存 + OPFS 持久缓存（第二次打开秒开）
+// 按需预览：本地 STL 简化或在线轻量网格 → 内存缓存 + OPFS 磁盘缓存
 import type { SimplifyRequest, SimplifyResult } from './stl.worker';
 import { lookup, type ModelSource } from './source';
+import { normPath, resolveFile } from '../core/catalog';
 
-export type MeshData = { positions: Float32Array; indices: Uint32Array; angleZ: number };
+import { decodeMesh, encodeMesh, type MeshData } from './mesh-codec';
+import { previewEntry } from './preview-source';
+export type { MeshData } from './mesh-codec';
 
 const CACHE_VERSION = 'v2';
 const WORKERS = Math.min(3, Math.max(1, (navigator.hardwareConcurrency || 4) - 2));
@@ -66,13 +69,7 @@ async function readCache(key: string): Promise<MeshData | null> {
     if (!dir) return null;
     const file = await (await dir.getFileHandle(await hashKey(key))).getFile();
     const buf = await file.arrayBuffer();
-    const head = new Float64Array(buf, 0, 3); // [顶点数, 索引数, angleZ]
-    const nv = head[0], ni = head[1];
-    return {
-      positions: new Float32Array(buf, 24, nv * 3),
-      indices: new Uint32Array(buf, 24 + nv * 12, ni),
-      angleZ: head[2],
-    };
+    return decodeMesh(buf);
   } catch {
     return null;
   }
@@ -82,11 +79,7 @@ async function writeCache(key: string, m: MeshData) {
   try {
     const dir = await cacheDir();
     if (!dir) return;
-    const nv = m.positions.length / 3;
-    const out = new Uint8Array(24 + m.positions.byteLength + m.indices.byteLength);
-    new Float64Array(out.buffer, 0, 3).set([nv, m.indices.length, m.angleZ]);
-    out.set(new Uint8Array(m.positions.buffer, m.positions.byteOffset, m.positions.byteLength), 24);
-    out.set(new Uint8Array(m.indices.buffer, m.indices.byteOffset, m.indices.byteLength), 24 + m.positions.byteLength);
+    const out = encodeMesh(m);
     const fh = await dir.getFileHandle(await hashKey(key), { create: true });
     const ws = await (fh as FileSystemFileHandle & { createWritable(): Promise<FileSystemWritableFileStream> }).createWritable();
     await ws.write(out);
@@ -98,6 +91,7 @@ async function writeCache(key: string, m: MeshData) {
 
 export async function clearMeshCache() {
   memory.clear();
+  remoteMemory.clear();
   try {
     const root = await navigator.storage.getDirectory();
     await root.removeEntry(`mesh-${CACHE_VERSION}`, { recursive: true });
@@ -119,10 +113,10 @@ export const onLoadProgress = (fn: (p: Progress) => void) => {
   };
 };
 
-/** 加载并简化一个零件。找不到本地文件时返回 null（界面退回代理模型） */
-export function loadMesh(src: ModelSource | null, logicalPath: string, autoZ: boolean): Promise<MeshData> | null {
+/** 优先本地 STL；无本地来源时按需读取在线预览。两者均不可用时显示代理模型。 */
+export function loadMesh(src: ModelSource | null, logicalPath: string, autoZ: boolean, allowDemo = true): Promise<MeshData | null> | null {
   const f = lookup(src, logicalPath);
-  if (!f) return null;
+  if (!f) return allowDemo ? loadPreview(logicalPath) : null;
   const key = `${f.path}|${f.size}|${f.version}|${autoZ ? 'z' : ''}`;
   let p = memory.get(key);
   if (!p) {
@@ -149,3 +143,33 @@ export function loadMesh(src: ModelSource | null, logicalPath: string, autoZ: bo
   }
   return p;
 }
+
+// 在线预览走独立缓存键，永远不会被当成打印 STL 导出。
+function loadPreview(path: string): Promise<MeshData | null> {
+  const requestKey = `preview:${normPath(resolveFile(path)?.p ?? path)}`;
+  let p = remoteMemory.get(requestKey);
+  if (!p) {
+    p = (async () => {
+      const entry = await previewEntry(path);
+      if (!entry) return null;
+      const cached = await readCache(entry.key);
+      if (cached) return cached;
+      progress.active++;
+      progress.current = path.split('/').pop();
+      emit();
+      try {
+        const mesh = await entry.read();
+        await writeCache(entry.key, mesh);
+        return mesh;
+      } finally {
+        progress.active--;
+        progress.done++;
+        emit();
+      }
+    })();
+    p.catch(() => remoteMemory.delete(requestKey));
+    remoteMemory.set(requestKey, p);
+  }
+  return p;
+}
+const remoteMemory = new Map<string, Promise<MeshData | null>>();

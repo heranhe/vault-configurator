@@ -51,8 +51,8 @@ export function StartPanel() {
           <li>
             <span className="step-num">1</span>
             <div>
-              <b>连接模型文件夹</b>
-              <div className="muted small">读取你本地下载好的 STL，用来显示真实模型和打包下载</div>
+              <b>导入自己的模型文件夹</b>
+              <div className="muted small">未导入时显示 4 款基础单元，导入后显示全部规格并支持打印打包</div>
               <button className={`pill ${source ? '' : 'pill-yellow'}`} onClick={() => useStore.setState({ sourceDialog: true })}>
                 {source ? `● 已连接 ${source.files.size} 个文件` : '连接文件夹'}
               </button>

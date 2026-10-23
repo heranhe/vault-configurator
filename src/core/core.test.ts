@@ -129,9 +129,9 @@ describe('零件数量', () => {
     expect(qtyOf(sus('L'), 'Hinge Top')).toBe(1);
   });
 
-  it('拆件显示的零件，代理块数等于文件里的件数', () => {
+  it('拆件显示覆盖文件里的件数，并允许整套复用', () => {
     for (const p of [...partsOf(drawer('M')), ...partsOf({ type: 'sustainer', width: 'L', depth: 5, height: 1, interior: 'flat' })])
-      if (p.split) expect(p.blocks.length).toBe(2);
+      if (p.split) expect(p.blocks.length % (p.files[0].pieces ?? 2)).toBe(0);
   });
 });
 

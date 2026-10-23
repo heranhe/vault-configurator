@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { DEPTHS, dimsOf, heightsFor, ROOF_TYPES, specName, WIDTHS } from '../core/dims';
 import { dropOnUnit, unitsOn } from '../core/rules';
 import type { Depth, UnitSpec, Width } from '../core/types';
+import { DEMO_SPECS } from '../models/demo';
 import { useStore } from '../store';
+import { MOBILE_QUERY, useMobile } from './MobileTabs';
+import { StackingGuide } from './StackingGuide';
 
 type Tab = 'drawer' | 'sustainer' | 'roof' | 'base';
 const TABS: [Tab, string][] = [['drawer', '抽屉'], ['sustainer', '收纳箱'], ['roof', '顶盖'], ['base', '底座']];
@@ -52,6 +55,9 @@ function ThumbSvg({ spec }: { spec: UnitSpec }) {
 }
 
 export function Library() {
+  const source = useStore((s) => s.source);
+  const mobile = useMobile();
+  const [guideOpen, setGuideOpen] = useState(false);
   const [tab, setTab] = useState<Tab>('drawer');
   const [widths, setWidths] = useState<Width[]>(['S', 'M']);
   const [depth, setDepth] = useState<Depth>(5);
@@ -59,7 +65,7 @@ export function Library() {
   const clickAdd = useStore((s) => s.clickAdd);
   const placements = useStore((s) => s.placements);
   const selectedId = useStore((s) => s.selectedId);
-  const specs = useMemo(() => specsFor(tab, widths, depth), [tab, widths, depth]);
+  const specs = useMemo(() => source ? specsFor(tab, widths, depth) : DEMO_SPECS, [source, tab, widths, depth]);
 
   // 选中单元后，零件库自动切到它的深度并包含它的宽度：同一座塔深度必须一致，少点几下
   useEffect(() => {
@@ -82,20 +88,29 @@ export function Library() {
     if (e.button !== 0) return;
     e.preventDefault();
     const sx = e.clientX, sy = e.clientY;
+    // 触屏时卡片列表要能滑动：桌面版列表竖向滚、手机版横向滚，只有朝另一个方向拖才拿起单元
+    const touch = e.pointerType !== 'mouse';
+    const listAxisX = matchMedia(MOBILE_QUERY).matches;
     let started = false;
     const move = (ev: PointerEvent) => {
-      if (!started && Math.hypot(ev.clientX - sx, ev.clientY - sy) > 5) {
-        started = true;
-        startDrag({ spec, groupIds: [] });
-      }
+      const dx = Math.abs(ev.clientX - sx), dy = Math.abs(ev.clientY - sy);
+      if (started || Math.hypot(dx, dy) <= (touch ? 8 : 5)) return;
+      if (touch && (listAxisX ? dx > dy : dy > dx)) return; // 交给浏览器滚动，随后会收到 pointercancel
+      started = true;
+      startDrag({ spec, groupIds: [] });
     };
-    const up = () => {
+    const done = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', done);
+    };
+    const up = () => {
+      done();
       if (!started) clickAdd(spec);
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', done);
   };
 
   const toggleWidth = (w: Width) => setWidths((ws) => (ws.includes(w) ? (ws.length > 1 ? ws.filter((x) => x !== w) : ws) : WIDTHS.filter((x) => ws.includes(x) || x === w)));
@@ -103,7 +118,12 @@ export function Library() {
   return (
     <aside className="library">
       <div className="fig">FIG. 01 · 零件库</div>
-      <h2>选一个单元</h2>
+      <div className="library-heading">
+        <h2>选一个单元</h2>
+        <button type="button" className="pill library-guide" aria-haspopup="dialog" onClick={() => setGuideOpen(true)}>组合方式</button>
+      </div>
+      {guideOpen && <StackingGuide onClose={() => setGuideOpen(false)} />}
+      {source && <>
       <div className="seg">
         {TABS.map(([k, label]) => (
           <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{label}</button>
@@ -123,7 +143,8 @@ export function Library() {
           ))}
         </div>
       </div>
-      <p className="lib-tip">拖到台面上；或连续点击，一层层往上叠。</p>
+      </>}
+      <p className="lib-tip">{source ? (mobile ? '点卡片添加，连续点一层层往上叠；按住往上拖可放到指定位置。' : '拖到台面上；或连续点击，一层层往上叠。') : '可直接使用这 4 款。导入模型文件夹后显示全部规格。'}</p>
       <div className="cards">
         {specs.map((spec) => {
           const { w, h, d } = dimsOf(spec);

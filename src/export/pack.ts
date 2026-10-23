@@ -1,5 +1,4 @@
 // 把选中的零件从用户本地复制打包。模型文件只在用户电脑上读写，不上传
-import { downloadZip } from 'client-zip';
 import { bomCsv, type BomRow } from '../core/bom';
 import { colorById } from '../data/colors';
 import { lookup, type ModelSource } from '../models/source';
@@ -17,6 +16,12 @@ export function zipEntryName(r: BomRow) {
 export async function packZip(rows: BomRow[], hardware: Record<string, number>, source: ModelSource, projectJson: string, onProgress: (n: number, total: number) => void) {
   const date = new Date().toISOString().slice(0, 10);
   const name = `VAULT_方案_${date}.zip`;
+  // 在异步加载打包库前打开保存窗口，保留浏览器要求的用户手势授权。
+  const w = window as unknown as { showSaveFilePicker?: (o: object) => Promise<FileSystemFileHandle> };
+  const handle = w.showSaveFilePicker
+    ? await w.showSaveFilePicker({ suggestedName: name, types: [{ description: 'ZIP', accept: { 'application/zip': ['.zip'] } }] })
+    : null;
+  const { downloadZip } = await import('client-zip');
   const total = rows.length;
   let n = 0;
   async function* entries() {
@@ -31,9 +36,7 @@ export async function packZip(rows: BomRow[], hardware: Record<string, number>, 
     }
   }
   const resp = downloadZip(entries());
-  const w = window as unknown as { showSaveFilePicker?: (o: object) => Promise<FileSystemFileHandle> };
-  if (w.showSaveFilePicker) {
-    const handle = await w.showSaveFilePicker({ suggestedName: name, types: [{ description: 'ZIP', accept: { 'application/zip': ['.zip'] } }] });
+  if (handle) {
     const writable = await (handle as FileSystemFileHandle & { createWritable(): Promise<WritableStream> }).createWritable();
     await resp.body!.pipeTo(writable);
   } else {
@@ -51,6 +54,8 @@ function readme(rows: BomRow[], hardware: Record<string, number>) {
     'VAULT 模块化收纳系统 · 打印包',
     '',
     '文件夹按颜色分组，文件名末尾 __xN 表示需要打印 N 份。',
+    '一份 STL 可能包含多个独立零件；每份件数和零件总数见打印清单 CSV，不需要把成套文件重复打印。',
+    '标记为可复用工装的文件仅需打印清单中的份数，可用于方案内多套组件，装配完成后取下。',
     '材料：PLA，Bambu Studio 标准参数即可；想更结实可增加墙数/填充，或用 PETG。',
     '',
     '切片时必须开启支撑的零件：',

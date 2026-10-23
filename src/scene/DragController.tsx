@@ -76,18 +76,21 @@ export function DragController() {
       st.setDrop(drop);
     };
     const up = () => useStore.getState().endDrag();
+    const cancel = () => {
+      useStore.getState().setDrop(null);
+      useStore.getState().endDrag();
+    };
     const key = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') {
-        useStore.getState().setDrop(null);
-        useStore.getState().endDrag();
-      }
+      if (ev.key === 'Escape') cancel();
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', cancel); // 触屏被系统手势打断时不落下
     window.addEventListener('keydown', key);
     return () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', cancel);
       window.removeEventListener('keydown', key);
     };
   }, [active, camera, gl, scene]);

@@ -34,10 +34,11 @@ export function RightPanel() {
             <div className="muted">
               {(() => {
                 const { w, h, d } = dimsOf(sel.spec);
-                return `${Math.round(w)} × ${Math.round(d)} × ${Math.round(h)} mm · ${partsOf(sel.spec).length} 类零件`;
+                return `${Math.round(w)} × ${Math.round(d)} × ${Math.round(h)} mm · ${partsOf(sel.spec).filter((p) => !p.tooling).length} 类零件`;
               })()}
             </div>
             {sel.spec.type === 'drawer' && (
+              <>
               <label className="field">
                 内部
                 <select value={sel.spec.interior} onChange={(e) => updateSpec(sel.id, { ...sel.spec, interior: e.target.value as 'empty' } as typeof sel.spec)}>
@@ -45,8 +46,15 @@ export function RightPanel() {
                   <option value="baseplate">Gridfinity 底板</option>
                 </select>
               </label>
+              <label className="field">
+                齿轮导轨（可选）
+                <input type="checkbox" checked={sel.spec.gearedRails !== false} onChange={(e) => updateSpec(sel.id, { ...sel.spec, gearedRails: e.target.checked } as typeof sel.spec)} />
+              </label>
+              <p className="muted small">增强锁紧力；同一 2F / 4F 模组装多个盒体时需要安装。</p>
+              </>
             )}
             {sel.spec.type === 'sustainer' && (sel.spec.width === 'L' || sel.spec.width === 'XL') && (
+              <>
               <label className="field">
                 内部
                 <select value={sel.spec.interior} onChange={(e) => updateSpec(sel.id, { ...sel.spec, interior: e.target.value as 'flat' } as typeof sel.spec)}>
@@ -55,6 +63,26 @@ export function RightPanel() {
                   ))}
                 </select>
               </label>
+              {sel.spec.interior !== 'flat' && (() => {
+                const spec = sel.spec;
+                const rows = spec.interior === 'sealed' && spec.width === 'L' ? spec.depth - 1 : spec.depth === 3 ? 3 : spec.depth - 1;
+                return <>
+                  <label className="field">
+                    横向分隔排数
+                    <select value={Math.min(spec.dividerCount ?? rows, rows)} onChange={(e) => updateSpec(sel.id, { ...spec, dividerCount: +e.target.value })}>
+                      {Array.from({ length: rows + 1 }, (_, n) => <option key={n} value={n}>{n} 排</option>)}
+                    </select>
+                  </label>
+                  {spec.interior === 'dividers' && <label className="field">
+                    纵向分隔片
+                    <select value={Math.min(spec.depthDividerCount ?? 2, 2)} onChange={(e) => updateSpec(sel.id, { ...spec, depthDividerCount: +e.target.value })}>
+                      {[0, 1, 2].map((n) => <option key={n} value={n}>{n} 片</option>)}
+                    </select>
+                  </label>}
+                  <p className="muted small">分隔片可按需减少，打印清单随选择更新。</p>
+                </>;
+              })()}
+              </>
             )}
             {assemblyId === sel.id ? (
               <div className="explode-box">

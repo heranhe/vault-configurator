@@ -1,7 +1,8 @@
 import { create } from 'zustand';
+import { buildBom } from './core/bom';
 import { autoPlace, columnOf, type Drop } from './core/rules';
 import type { ColorSlot, Placement, UnitSpec, Vec3 } from './core/types';
-import type { ModelSource } from './models/source';
+import { serverSource, type ModelSource } from './models/source';
 
 export type DragState = {
   spec: UnitSpec;
@@ -21,11 +22,14 @@ type State = {
   explodeId: string | null;
   explodeT: number;
   xray: boolean;
+  showHardwareLabels: boolean;
   palette: Record<ColorSlot, string>;
   colorScope: 'all' | 'unit';
   drag: DragState | null;
   toast: { text: string; kind: 'error' | 'info'; at: number } | null;
   source: ModelSource | null;
+  /** 用户每次连接或断开都递增，防止启动时的旧请求覆盖新操作。 */
+  sourceRevision: number;
   /** 本地服务器能否按路径读取（npm run dev 时为 true） */
   pathSupported: boolean;
   /** 用户选的预设视角（方位角, 俯仰角），取景时沿用 */
@@ -58,13 +62,16 @@ type State = {
   setExplode: (id: string | null) => void;
   setExplodeT: (t: number) => void;
   setXray: (on: boolean) => void;
+  setShowHardwareLabels: (on: boolean) => void;
   setColorScope: (s: 'all' | 'unit') => void;
   notify: (text: string, kind?: 'error' | 'info') => void;
   setSource: (s: ModelSource | null) => void;
+  restoreSource: (signal: AbortSignal) => Promise<void>;
   clearAll: () => void;
   loadExample: (placements: Placement[]) => void;
   fitView: () => void;
   setFocusPart: (id: string | null) => void;
+  focusBomPart: (key: string) => void;
   startAssembly: (unitId: string) => void;
   /** 从头播放第 step 步（只播这一步） */
   playStep: (step: number) => void;
@@ -108,11 +115,13 @@ export const useStore = create<State>((set, get) => ({
   explodeId: null,
   explodeT: 0.7,
   xray: false,
+  showHardwareLabels: false,
   palette: { ...DEFAULT_PALETTE, ...saved?.palette },
   colorScope: 'all',
   drag: null,
   toast: null,
   source: null,
+  sourceRevision: 0,
   pathSupported: false,
   viewAngle: null,
   capture: false,
@@ -207,6 +216,18 @@ export const useStore = create<State>((set, get) => ({
     tick();
   },
   setFocusPart: (focusPart) => set({ focusPart }),
+  focusBomPart: (key) => {
+    const { placements, palette, explodeId, selectedId } = get();
+    const row = buildBom(placements, palette).rows.find((r) => r.key === key);
+    if (!row) return;
+    const target = row.targets.find((t) => t.unitId === explodeId)
+      ?? row.targets.find((t) => t.unitId === selectedId)
+      ?? row.targets[0];
+    if (!target) return;
+    // 直接展开并点名零件；退出安装播放，确保目标不会被步骤隐藏。
+    cancelAnimationFrame(explodeRaf);
+    set({ selectedId: target.unitId, explodeId: target.unitId, explodeT: 1, focusPart: target.partId, assembly: null });
+  },
   // 安装流程借用爆炸查看的「只显示这一个单元 + 重新取景」
   startAssembly: (unitId) =>
     set({ explodeId: unitId, selectedId: unitId, focusPart: null, assembly: { unitId, step: 0, t: 0, playing: true, chain: true } }),
@@ -218,9 +239,20 @@ export const useStore = create<State>((set, get) => ({
     set({ explodeT: t });
   },
   setXray: (on) => set({ xray: on }),
+  setShowHardwareLabels: (showHardwareLabels) => set({ showHardwareLabels }),
   setColorScope: (colorScope) => set({ colorScope }),
   notify: (text, kind = 'info') => set({ toast: { text, kind, at: Date.now() } }),
-  setSource: (source) => set({ source, sourceDialog: false }),
+  setSource: (source) => set((s) => ({ source, sourceRevision: s.sourceRevision + 1 })),
+  restoreSource: async (signal) => {
+    const revision = get().sourceRevision;
+    const { available, source } = await serverSource(signal);
+    if (signal.aborted) return;
+    set((s) => ({
+      pathSupported: available,
+      // 已连接的文件夹，以及请求期间的连接 / 断开操作，都以用户选择为准。
+      ...(s.sourceRevision === revision && !s.source ? { source } : {}),
+    }));
+  },
   clearAll: () => {
     get().commit([]);
     set({ selectedId: null, explodeId: null });

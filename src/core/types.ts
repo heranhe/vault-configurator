@@ -7,8 +7,8 @@ export type DrawerInterior = 'empty' | 'baseplate';
 export type BaseMode = 'wheels' | 'feet';
 
 export type UnitSpec =
-  | { type: 'drawer'; width: Width; depth: Depth; height: Height; interior: DrawerInterior }
-  | { type: 'sustainer'; width: Width; depth: Depth; height: Height; interior: SustainerInterior }
+  | { type: 'drawer'; width: Width; depth: Depth; height: Height; interior: DrawerInterior; gearedRails?: boolean }
+  | { type: 'sustainer'; width: Width; depth: Depth; height: Height; interior: SustainerInterior; dividerCount?: number; depthDividerCount?: number }
   | { type: 'roof'; width: Width; depth: Depth; roof: RoofType }
   /** 改装件底座：wheels = 后轮 + 前支脚（推车），feet = 前后支脚 */
   | { type: 'base'; width: Width; depth: Depth; mode: BaseMode };

@@ -37,6 +37,10 @@ function angleBetween(a: THREE.Matrix4, b: THREE.Matrix4) {
 }
 
 export type OrientHint = {
+  /** 已按孔位标定的装配旋转；不再通过包围盒长短猜朝向。 */
+  rotation?: [number, number, number];
+  /** 用实际连接轴心替代包围盒中心（几何坐标），对齐到 block 中心。 */
+  anchor?: [number, number, number];
   /** 基准朝向（度，XYZ 欧拉角）：同等匹配时优先选离它最近的旋转 */
   base?: [number, number, number];
   /** 在选出的旋转之后再追加的翻转（度），用于修正正反面 */
@@ -54,9 +58,11 @@ export function fitToBlock(geoBox: THREE.Box3, block: Block, hint: OrientHint = 
   const targetRank = rank(target);
   const base = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(...(hint.base ?? [0, 0, 0]).map((d) => d * deg) as [number, number, number], 'XYZ'));
 
-  let best: THREE.Matrix4 | null = null;
+  let best: THREE.Matrix4 | null = hint.rotation
+    ? new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(...hint.rotation.map((d) => d * deg) as [number, number, number], 'XYZ'))
+    : null;
   let bestScore = Infinity;
-  for (const r of ROTATIONS) {
+  for (const r of hint.rotation ? [] : ROTATIONS) {
     const s = size.clone().applyMatrix4(new THREE.Matrix4().extractRotation(r));
     s.set(Math.abs(s.x), Math.abs(s.y), Math.abs(s.z));
     const mismatch = rank(s) === targetRank ? 0 : 1000;
@@ -72,7 +78,8 @@ export function fitToBlock(geoBox: THREE.Box3, block: Block, hint: OrientHint = 
   // 旋转后的包围盒中心 → 代理块中心
   const rotated = geoBox.clone().applyMatrix4(rot);
   const c = new THREE.Vector3();
-  rotated.getCenter(c);
+  if (hint.anchor) c.set(...hint.anchor).applyMatrix4(rot);
+  else rotated.getCenter(c);
   const blockCenter = new THREE.Vector3(block.at[0] + block.size[0] / 2, block.at[1] + block.size[1] / 2, block.at[2] + block.size[2] / 2);
   return new THREE.Matrix4().makeTranslation(blockCenter.x - c.x, blockCenter.y - c.y, blockCenter.z - c.z).multiply(rot);
 }
