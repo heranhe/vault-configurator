@@ -176,9 +176,6 @@ select.pill { appearance: none; padding-right: 12px; }
 /* ---------- 视角控制 ---------- */
 .view-presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 10px; }
 .view-presets .pill { padding: 3px 9px; font-size: 11.5px; }
-.slider-row { display: grid; grid-template-columns: 42px 1fr 44px; align-items: center; gap: 8px; margin: 6px 0; font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
-.slider-row input { width: 100%; accent-color: var(--ink); }
-.slider-row .val { text-align: right; color: var(--ink); }
 
 /* ---------- 连接模型弹窗 ---------- */
 .modal-mask { pointer-events: auto; position: fixed; inset: 0; background: rgba(35, 38, 58, .28); display: flex; align-items: center; justify-content: center; z-index: 50; }
