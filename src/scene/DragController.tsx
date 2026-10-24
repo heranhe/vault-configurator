@@ -1,3 +1,4 @@
+import { t, useLocale } from '../i18n';
 import { Edges, Html } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
@@ -132,7 +133,7 @@ function Ghost() {
         );
       })}
       <Html position={[items[0].pos[0] + first.w / 2, items[0].pos[1] + first.h + 20, items[0].pos[2] + first.d / 2]} center zIndexRange={[30, 0]}>
-        <div className={`drop-tip ${ok ? 'ok' : 'bad'}`}>{ok ? '✓ ' : '✕ '}{tip}</div>
+        <div className={`drop-tip ${ok ? 'ok' : 'bad'}`}>{ok ? '✓ ' : '✕ '}{t(tip)}</div>
       </Html>
     </group>
   );

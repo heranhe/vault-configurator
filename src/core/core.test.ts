@@ -62,7 +62,7 @@ describe('放置规则', () => {
     expect(dropOnUnit(base, units[0], 100, units).ok).toBe(false);
     const r = dropOnUnit(drawer('L', 5, 2), units[0], 100, units);
     expect(r.ok).toBe(true);
-    expect(r.pos[1]).toBeCloseTo(123.2);
+    expect(r.pos[1]).toBeCloseTo(103.2);
     expect(dropOnUnit(drawer('S'), units[0], 10, units).ok).toBe(true);
   });
 

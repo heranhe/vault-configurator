@@ -88,6 +88,11 @@ h3 { margin: 0; font-size: 13px; color: var(--ink); }
 .topbar > * { pointer-events: auto; }
 .stage-overlay { grid-column: 2; position: relative; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; container: workspace / inline-size; }
 .stage-overlay .chips, .stage-overlay .chip-read, .empty-hint button { pointer-events: auto; }
+.scene-tools { position: absolute; left: 8px; top: 108px; z-index: 2; pointer-events: auto; }
+.scene-tools .pill { min-height: 38px; gap: 7px; }
+.scene-tools .pill:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
+.canvas-layer.pan-mode canvas { cursor: grab; }
+.canvas-layer.pan-mode canvas:active { cursor: grabbing; }
 
 /* ---------- 左侧零件库 ---------- */
 .library { grid-column: 1; display: flex; flex-direction: column; padding: 14px 12px 0 14px; }
@@ -130,7 +135,11 @@ h3 { margin: 0; font-size: 13px; color: var(--ink); }
 .card-dims { font-family: var(--mono); font-size: 10px; color: var(--muted); }
 
 /* ---------- 中间场景 ---------- */
-.stage-caption { align-self: center; margin-top: 4px; padding: 6px 14px; color: var(--ink); font-size: 13.5px; background: rgba(245, 240, 229, .85); border: 1px solid var(--ink); border-radius: 999px; max-width: 100%; text-align: center; }
+.stage-caption-slot { align-self: center; max-width: 100%; }
+.stage-caption { display: flex; align-items: center; gap: 8px; margin-top: 4px; padding: 6px 14px; color: var(--ink); font-size: 13.5px; background: rgba(245, 240, 229, .85); border: 1px solid var(--ink); border-radius: 999px; max-width: 100%; text-align: center; }
+.stage-caption-close { pointer-events: auto; flex: none; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--muted); font-size: 20px; line-height: 1; }
+.stage-caption-close:hover { background: var(--pill); color: var(--ink); }
+.stage-caption-close:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .empty-hint { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; pointer-events: none; color: var(--muted); }
 .example-row { display: flex; gap: 10px; margin-top: 10px; pointer-events: auto; flex-wrap: wrap; justify-content: center; }
 .example { display: flex; flex-direction: column; gap: 4px; width: 190px; padding: 10px 12px; text-align: left; color: var(--ink); cursor: pointer; }
@@ -464,3 +473,74 @@ select.pill { appearance: none; padding-right: 12px; }
 @media (max-width: 720px) {
   .brand-block .legal-link { font-size: 10px; white-space: nowrap; }
 }
+
+/* Keep the language control available while the mobile toolbar scrolls. */
+.language-switch { flex: none; align-self: center; white-space: nowrap; }
+.language-switch button { min-height: 32px; min-width: 40px; padding: 5px 9px; }
+html[lang="en"] .bom-hw-heading { flex-wrap: wrap; }
+html[lang="en"] .library-heading { flex-wrap: wrap; }
+html[lang="en"] .card-name { overflow-wrap: anywhere; }
+html[lang="en"] .seg button { white-space: normal; }
+@media (max-width: 720px) {
+  .language-switch { position: sticky; left: 0; z-index: 3; background: var(--pill); box-shadow: 0 0 0 4px var(--pill); order: -1; }
+  html[lang="en"] .asm-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+html[lang="en"] .language-switch button { white-space: nowrap; flex: none; min-width: 40px; }
+html[lang="en"] .filter-row > span { width: auto; min-width: 18px; flex-shrink: 0; }
+
+/* ---------- 手机端：爆炸查看 / 安装流程 ----------
+   不复用桌面的右侧面板和 3D 区下方步骤条：面板收起，底部标签栏换成 MobileModeBar，屏幕留给 3D 区。 */
+.mobile-mode { display: none; }
+@media (max-width: 720px) {
+  /* 双指拖动即可平移，手机不需要平移按钮 */
+  .scene-tools { display: none; }
+  .app.mode-explode .mobile-tabs, .app.mode-asm .mobile-tabs { display: none; }
+  .app.mode-explode .stage-caption-slot, .app.mode-asm .stage-caption-slot,
+  .app.mode-asm .asm, .app.mode-explode .chips, .app.mode-asm .chips { display: none; }
+  .mobile-mode {
+    grid-area: tabs; position: relative; z-index: 1; pointer-events: auto;
+    display: flex; flex-direction: column; gap: 8px; padding: 10px 12px;
+    background: rgba(245, 240, 229, 0.94); border: 1px solid var(--ink); border-radius: 14px; box-shadow: 2px 2px 0 var(--ink);
+  }
+  .mm-row { display: flex; align-items: center; gap: 10px; }
+  .mm-k { flex: none; font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--ink); }
+  .mm-row input[type='range'] { flex: 1; height: 28px; accent-color: var(--ink); }
+  .mm-actions .pill { flex: 1; min-width: 0; justify-content: center; min-height: 38px; padding: 6px 8px; font-size: 13px; }
+  .mm-done { flex: 0 0 auto !important; padding: 6px 16px !important; }
+  .mm-focus { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border-radius: 8px; background: #fbe3c9; color: var(--ink); font-size: 13px; font-weight: 700; }
+  .mm-focus button { border: 0; background: none; font-size: 18px; line-height: 1; padding: 0 4px; color: var(--ink); }
+  .mm-step { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: none; padding: 0; text-align: left; color: var(--ink); }
+  .mm-title { flex: 1; min-width: 0; font-weight: 750; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mm-caret { flex: none; font-size: 13px; color: var(--muted); }
+  .mm-note { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--ink); max-height: 22dvh; overflow-y: auto; }
+  .mm-ref { display: block; margin-top: 4px; font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+  .mm-progress { height: 4px; border-radius: 2px; background: rgba(35, 38, 58, 0.12); overflow: hidden; }
+  .mm-progress span { display: block; height: 100%; background: #ff8a1f; transition: width .1s linear; }
+  .mm-actions .pill[aria-label] { flex: 0 0 44px; }
+  /* 标注打开时，分页条贴在 3D 区顶部，字小一点 */
+  .callout-pager .pill { padding: 4px 8px; font-size: 11px; }
+  .callout-pager .chip-read { font-size: 10.5px; }
+}
+.start-close { display: none; }
+@media (max-width: 720px) {
+  .start { position: relative; }
+  .start-close { display: inline-flex; position: sticky; top: 0; float: right; z-index: 2; margin: -6px -4px 0 8px; padding: 6px 12px; }
+}
+@media (max-width: 720px) {
+  /* 体验模式提醒：手机上压成一行，爆炸 / 安装流程时隐藏 */
+  .import-reminder { flex-wrap: nowrap; width: auto; max-width: calc(100% - 8px); padding: 4px 4px 4px 12px; gap: 8px; border-radius: 999px; font-size: 11.5px; white-space: nowrap; }
+  .import-reminder .pill { padding: 3px 10px; font-size: 11.5px; }
+  .app.mode-explode .import-reminder, .app.mode-asm .import-reminder { display: none; }
+}
+
+/* 导入核对：完整包数量 / 已识别 / 缺少的文件 */
+.source-expect { margin: 8px 0 0; font-size: 12.5px; color: var(--ink); }
+.source-summary { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--ink); border-radius: 8px; font-size: 13px; line-height: 1.6; color: var(--ink); }
+.source-summary.ok { background: #d8efe0; }
+.source-summary.warn { background: #fbe3c9; }
+.source-summary b { font-size: 14px; }
+.source-summary details { margin-top: 4px; }
+.source-summary summary { cursor: pointer; font-weight: 600; }
+.source-summary .source-issues { font-family: var(--mono); font-size: 11.5px; }
+.source-summary .source-renamed { margin-top: 6px; }
+.source-summary .source-renamed > .muted { margin: 4px 0; font-size: 12px; }

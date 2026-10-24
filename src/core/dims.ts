@@ -7,9 +7,9 @@ export const heightMM = (h: Height) => 9 + 48 * h; // 1F 57 / 2F 105 / 4F 201
 export const ROOF_MM = 14;
 /** 模组顶部的嵌套凸台：叠放时嵌进上一层，所以叠放节距是 48 mm/F，2 个 1F 正好等于 1 个 2F */
 export const NEST_MM = 9;
-/** 底座：本体高 52.2（实测），被前支脚 / 后轮抬高 80（轮胎 Ø160） */
+/** 底座底面离地 60mm；Ø160 后轮轴孔在底面上方 20mm，轮心高 80mm。 */
 export const BASE_BODY_MM = 52.2;
-export const BASE_LIFT_MM = 80;
+export const BASE_LIFT_MM = 60;
 
 export const WIDTHS: Width[] = ['S', 'M', 'L', 'XL'];
 export const DEPTHS: Depth[] = [3, 4, 5, 6, 7];

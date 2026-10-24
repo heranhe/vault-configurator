@@ -1,4 +1,5 @@
 import { CameraControls, Environment, Grid, Lightformer } from '@react-three/drei';
+import CameraControlsImpl from 'camera-controls';
 import { EffectComposer, N8AO, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
@@ -14,6 +15,8 @@ import { instanceExplodeOffset, partInstances, visibleParts } from './part-insta
 import { controls } from './controls';
 import { DragController } from './DragController';
 import { UnitView } from './UnitView';
+import { MOBILE_QUERY } from '../ui/MobileTabs';
+import { useMobileLabels } from '../ui/MobileModeBar';
 
 const deg = THREE.MathUtils.degToRad;
 const STUDIO_BG = '#ece6d8'; // 与页面底色一致，场景和页面融为一体
@@ -109,7 +112,20 @@ export function fitBox(box: THREE.Box3, az: number, polar: number, smooth = true
 /** 相机：默认正面并让产品占满画面；增删单元、点「适配」或进入爆炸查看时重新取景 */
 function CameraRig() {
   const ref = useRef<CameraControls>(null);
+  const panMode = useStore((s) => s.panMode);
+  const mouseButtons = useMemo(() => ({
+    left: panMode ? CameraControlsImpl.ACTION.TRUCK : CameraControlsImpl.ACTION.ROTATE,
+    middle: CameraControlsImpl.ACTION.TRUCK,
+    right: CameraControlsImpl.ACTION.TRUCK,
+    wheel: CameraControlsImpl.ACTION.DOLLY,
+  }), [panMode]);
+  const touches = useMemo(() => ({
+    one: panMode ? CameraControlsImpl.ACTION.TOUCH_TRUCK : CameraControlsImpl.ACTION.TOUCH_ROTATE,
+    two: CameraControlsImpl.ACTION.TOUCH_DOLLY_TRUCK,
+    three: CameraControlsImpl.ACTION.TOUCH_TRUCK,
+  }), [panMode]);
   const explodeId = useStore((s) => s.explodeId);
+  const mobileLabels = useMobileLabels((s) => s.on);
   const asmOn = useStore((s) => !!s.assembly);
   const fitNonce = useStore((s) => s.fitNonce);
   const count = useStore((s) => s.placements.length);
@@ -145,15 +161,18 @@ function CameraRig() {
   useEffect(() => {
     if (!ref.current) return;
     if (explodeId) {
-      // 取景范围 = 爆炸到最大（或安装流程走过的所有位置）时零件占到的范围；两侧再留出标注的位置
-      fitBox(spreadBox(explodeId, !!useStore.getState().assembly), ...VIEW_PRESETS['斜视'], true, 1.3);
+      // 取景范围 = 爆炸到最大（或安装流程走过的所有位置）时零件占到的范围；两侧再留出标注的位置。
+      // 手机端：爆炸图标注默认关闭时不用留；安装流程每步只标一两个零件，少留一些
+      const asm = !!useStore.getState().assembly;
+      const margin = !matchMedia(MOBILE_QUERY).matches ? 1.3 : asm ? 1.15 : mobileLabels ? 1.3 : 1.1;
+      fitBox(spreadBox(explodeId, asm), ...VIEW_PRESETS['斜视'], true, margin);
     } else {
       const { viewAngle } = useStore.getState();
       fitBox(unitsBox(), ...(viewAngle ?? VIEW_PRESETS['产品图']));
     }
-  }, [explodeId, asmOn, fitNonce, count, size.width, size.height, layoutNonce]);
+  }, [explodeId, asmOn, fitNonce, count, size.width, size.height, layoutNonce, mobileLabels]);
 
-  return <CameraControls ref={ref} makeDefault minDistance={120} maxDistance={8000} maxPolarAngle={Math.PI / 2 - 0.02} dollyToCursor smoothTime={0.25} />;
+  return <CameraControls ref={ref} makeDefault mouseButtons={mouseButtons} touches={touches} minDistance={120} maxDistance={8000} maxPolarAngle={Math.PI / 2 - 0.02} dollyToCursor smoothTime={0.25} />;
 }
 
 /** 每帧把爆炸单元各零件的锚点投影到屏幕，交给 HTML 标注层画引线 */
@@ -305,7 +324,8 @@ export function Scene() {
       gl={{ antialias: false, preserveDrawingBuffer: import.meta.env.DEV }}
       camera={{ position: [0, 300, 1200], fov: 30, near: 5, far: 30000 }}
       onPointerMissed={(e) => {
-        if (e.button === 0 && !useStore.getState().explodeId) useStore.getState().select(null);
+        const st = useStore.getState();
+        if (e.button === 0 && !st.panMode && !st.explodeId) st.select(null);
       }}
     >
       <Studio />

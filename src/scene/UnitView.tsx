@@ -154,6 +154,7 @@ export function UnitView({ p }: { p: Placement }) {
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     if (e.button !== 0) return;
     const st = useStore.getState();
+    if (st.panMode) return;
     if (st.explodeId && st.explodeId !== p.id) return;
     e.stopPropagation();
     if (st.explodeId) {
@@ -194,7 +195,7 @@ export function UnitView({ p }: { p: Placement }) {
       userData={{ unitId: p.id, ghost }}
       onPointerDown={ghost ? undefined : onPointerDown}
       onDoubleClick={(e) => {
-        if (ghost) return;
+        if (ghost || useStore.getState().panMode) return;
         e.stopPropagation();
         useStore.getState().setExplode(p.id);
       }}

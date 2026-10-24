@@ -27,3 +27,5 @@ const byNorm = new Map<string, Entry>((catalog.files as Entry[]).map((f) => [nor
 export const resolveFile = (logical: string) => byNorm.get(normPath(logical));
 export const catalogSize = byNorm.size;
 export const catalogPaths = [...byNorm.keys()];
+/** 官方模型包里该文件的字节数，用来在多份副本中认出原版 */
+export const catalogFileSize = (key: string) => byNorm.get(key)?.size;

@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { useEffect, useMemo, useState } from 'react';
 import { DEPTHS, dimsOf, heightsFor, ROOF_TYPES, specName, WIDTHS } from '../core/dims';
 import { dropOnUnit, unitsOn } from '../core/rules';
@@ -117,34 +118,34 @@ export function Library() {
 
   return (
     <aside className="library">
-      <div className="fig">FIG. 01 · 零件库</div>
+      <div className="fig">{t("FIG. 01 · 零件库")}</div>
       <div className="library-heading">
-        <h2>选一个单元</h2>
-        <button type="button" className="pill library-guide" aria-haspopup="dialog" onClick={() => setGuideOpen(true)}>组合方式</button>
+        <h2>{t("选一个单元")}</h2>
+        <button type="button" className="pill library-guide" aria-haspopup="dialog" onClick={() => setGuideOpen(true)}>{t("组合方式")}</button>
       </div>
       {guideOpen && <StackingGuide onClose={() => setGuideOpen(false)} />}
       {source && <>
       <div className="seg">
         {TABS.map(([k, label]) => (
-          <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{label}</button>
+          <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{t(label)}</button>
         ))}
       </div>
       <div className="filters">
         <div className="filter-row">
-          <span>宽</span>
+          <span>{t("宽")}</span>
           {WIDTHS.map((w) => (
             <button key={w} className={`chip ${widths.includes(w) ? 'on' : ''}`} onClick={() => toggleWidth(w)}>{w}</button>
           ))}
         </div>
         <div className="filter-row">
-          <span>深</span>
+          <span>{t("深")}</span>
           {DEPTHS.map((d) => (
             <button key={d} className={`chip ${depth === d ? 'on' : ''}`} onClick={() => setDepth(d)}>{d}</button>
           ))}
         </div>
       </div>
       </>}
-      <p className="lib-tip">{source ? (mobile ? '点卡片添加，连续点一层层往上叠；按住往上拖可放到指定位置。' : '拖到台面上；或连续点击，一层层往上叠。') : '可直接使用这 4 款。导入模型文件夹后显示全部规格。'}</p>
+      <p className="lib-tip">{t(source ? (mobile ? '点卡片添加，连续点一层层往上叠；按住往上拖可放到指定位置。' : '拖到台面上；或连续点击，一层层往上叠。') : '可直接使用这 4 款。导入模型文件夹后显示全部规格。')}</p>
       <div className="cards">
         {specs.map((spec) => {
           const { w, h, d } = dimsOf(spec);
@@ -152,13 +153,13 @@ export function Library() {
           return (
             <div
               key={specName(spec)}
-              className={`lib-card ${st === false ? 'dim' : ''}`}
+              className="lib-card"
               onPointerDown={(e) => onCardDown(e, spec)}
-              title="拖进 3D 场景，或单击自动放置"
+              title={t("拖进 3D 场景，或单击自动放置")}
             >
-              {st && <span className="badge">可叠放</span>}
+              {st && <span className="badge">{t("可叠放")}</span>}
               <Thumb spec={spec} />
-              <div className="card-name">{specName(spec)}</div>
+              <div className="card-name">{t(specName(spec))}</div>
               <div className="card-dims">{Math.round(w)}×{Math.round(d)}×{Math.round(h)}</div>
             </div>
           );

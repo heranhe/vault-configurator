@@ -6,6 +6,7 @@ import { DEPTHS, heightsFor, WIDTHS } from './dims';
 import { partsOf } from './parts';
 import type { UnitSpec } from './types';
 import { DEFAULT_PALETTE } from '../store';
+import { instanceAssemblySteps, partInstances } from '../scene/part-instances';
 
 type Drawer = Extract<UnitSpec, { type: 'drawer' }>;
 const spec: Drawer = { type: 'drawer', width: 'S', depth: 5, height: 1, interior: 'empty' };
@@ -68,5 +69,35 @@ describe('02 抽屉说明书逐步核对', () => {
       expect(poseAt(steps, first, 1, id).visible).toBe(true);
     }
     for (const p of partsOf(spec)) expect(poseAt(steps, steps.length - 1, 1, p.id)).toMatchObject({ visible: true, offset: [0, 0, 0] });
+  });
+
+  it('盒体推进后先从左右装入两颗限位块，再安装底部卡扣', () => {
+    const variants: Drawer[] = [
+      { ...spec, depth: 4 },
+      { ...spec, gearedRails: false },
+      { ...spec, width: 'XL', depth: 6, interior: 'baseplate' },
+    ];
+    for (const current of variants) {
+      const steps = assemblyOf(current);
+      const insert = steps.findIndex((s) => s.ref === '抽屉组装 第 10 步');
+      const stop = steps.findIndex((s) => s.ref === '抽屉组装 第 11 步');
+      const latch = steps.findIndex((s) => s.ref === '抽屉组装 第 12 步');
+      expect(stop).toBe(insert + 1);
+      expect(latch).toBe(stop + 1);
+      const stoppers = partsOf(current).find((p) => p.id === 'runner-stoppers')!;
+      const pieces = partInstances(stoppers);
+      expect(pieces).toHaveLength(2);
+      for (const [i, piece] of pieces.entries()) {
+        const pieceSteps = instanceAssemblySteps(steps, stoppers.id, piece.slide);
+        expect(poseAt(pieceSteps, insert, 1, stoppers.id).visible).toBe(false);
+        const start = poseAt(pieceSteps, stop, 0, stoppers.id);
+        expect(start).toMatchObject({ visible: true, active: true });
+        expect(start.offset).toEqual([i === 0 ? -45 : 45, 0, 0]);
+        expect(poseAt(pieceSteps, stop, 1, stoppers.id)).toMatchObject({ visible: true, offset: [0, 0, 0] });
+        expect(poseAt(pieceSteps, latch, 1, stoppers.id)).toMatchObject({ visible: true, offset: [0, 0, 0] });
+      }
+      expect(poseAt(steps, stop, 1, 'latch').visible).toBe(false);
+      expect(poseAt(steps, latch, 1, 'latch')).toMatchObject({ visible: true, offset: [0, 0, 0] });
+    }
   });
 });

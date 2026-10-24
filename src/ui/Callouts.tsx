@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 // 爆炸 / 安装流程的零件标注：标签排在单元左右两列，引线折一下指到零件上；点标签高亮对应零件
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { assemblyOf } from '../core/assembly';
@@ -6,6 +7,8 @@ import { instanceFocused, partInstances, labeledParts } from '../scene/part-inst
 import { screenAnchors } from '../scene/callouts';
 import { calloutPage, calloutPageSize } from '../scene/callout-layout';
 import { useStore } from '../store';
+import { MOBILE_QUERY, useMobile } from './MobileTabs';
+import { useMobileLabels } from './MobileModeBar';
 
 const GAP = 30; // 同一列相邻标签的最小间距（px）
 const REACH = 90; // 标签列离零件最外侧锚点的水平距离（px）
@@ -16,6 +19,10 @@ export function Callouts() {
   const step = useStore((s) => (s.assembly && s.assembly.unitId === s.explodeId ? s.assembly.step : -1));
   const focus = useStore((s) => s.focusPart);
   const showHardwareLabels = useStore((s) => s.showHardwareLabels);
+  // 手机端爆炸图的标注默认关闭（两列标签会盖住窄屏上的模型），由底部控制条的「标注」打开；安装流程每步只标几个零件，照常显示
+  const mobile = useMobile();
+  const mobileLabels = useMobileLabels((s) => s.on);
+  const hidden = mobile && step < 0 && !mobileLabels;
   const labels = useRef(new Map<string, HTMLButtonElement>());
   const lines = useRef(new Map<string, SVGPolylineElement>());
   const dots = useRef(new Map<string, SVGCircleElement>());
@@ -90,7 +97,7 @@ export function Callouts() {
             // 标签贴着自己那一侧的引线端点，不超出面板之间的空白区
             let edge = side < 0 ? minX - REACH : maxX + REACH;
             // 安装流程时右上角竖排着上一步 / 下一步，右列再让出按钮宽度
-            const right = free.right - 12 - (st.assembly ? 124 : 0);
+            const right = free.right - 12 - (st.assembly && !matchMedia(MOBILE_QUERY).matches ? 124 : 0);
             edge = side < 0 ? Math.max(free.left + 12 + wEl, edge) : Math.min(right - wEl, edge);
             el.style.display = '';
             el.style.transform = `translate(${side < 0 ? edge - wEl : edge}px, ${y - el.offsetHeight / 2}px)`;
@@ -116,13 +123,13 @@ export function Callouts() {
     return () => cancelAnimationFrame(raf);
   }, [visibleItems, paged.pages]);
 
-  if (!items.length) return null;
+  if (!items.length || hidden) return null;
   return (
     <div className="callouts">
       {paged.pages > 1 && <div className="callout-pager" style={{ position: 'fixed', ...pagerPosition, transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 8, pointerEvents: 'auto' }}>
-        <button className="pill" disabled={paged.current === 0} onClick={() => setPage(paged.current - 1)}>← 上一页</button>
-        <span className="chip-read" aria-live="polite">标注 {paged.current + 1}/{paged.pages} · 共 {items.length} 件</span>
-        <button className="pill" disabled={paged.current === paged.pages - 1} onClick={() => setPage(paged.current + 1)}>下一页 →</button>
+        <button className="pill" disabled={paged.current === 0} onClick={() => setPage(paged.current - 1)}>{t("← 上一页")}</button>
+        <span className="chip-read" aria-live="polite">{t("标注 ")}{paged.current + 1}/{paged.pages} {t(" · 共 ")}{items.length} {t(" 件")}</span>
+        <button className="pill" disabled={paged.current === paged.pages - 1} onClick={() => setPage(paged.current + 1)}>{t("下一页 →")}</button>
       </div>}
       <svg className="callout-lines">
         {visibleItems.map((it) => (
@@ -141,7 +148,7 @@ export function Callouts() {
           ref={(el) => void (el ? labels.current.set(it.key, el) : labels.current.delete(it.key))}
           onClick={() => useStore.getState().setFocusPart(focus === it.id ? null : it.id)}
         >
-          {it.name}
+          {t(it.name)}
         </button>
       ))}
     </div>

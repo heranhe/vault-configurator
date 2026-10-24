@@ -9,6 +9,8 @@
 1. 先**完整解压**压缩包（Windows：右键 → 全部解压缩）。
 2. 双击文件夹里的 **`VAULT配置器.html`**，用 Chrome、Edge 或 Safari 打开。
 
+页面顶部可点 **「中文 / EN」**切换语言，刷新后保留选择；语言仅保存在当前浏览器。
+
 ### 2. ⚠️ 导入你购买的 3D 模型文件夹
 
 网页打开后，点右上角 **「未连接打印文件夹」**，在弹窗里点 **「把整个模型文件夹拖到这里，或点击选择文件夹」**，选择**你自己购买的 VAULT 3D 模型文件夹**（也可以直接把文件夹拖进去）。
@@ -28,9 +30,11 @@
 1. **Fully extract** the zip first (Windows: right-click → Extract All).
 2. Double-click **`VAULT配置器.html`** in the folder and open it with Chrome, Edge or Safari.
 
+Use **中文 / EN** at the top to switch language. Your choice is remembered in this browser, including after reopening the offline page.
+
 ### 2. ⚠️ Import the 3D model folder you purchased
 
-Once the page is open, click **"未连接打印文件夹"** (no print folder connected) at the top right, then click **"把整个模型文件夹拖到这里，或点击选择文件夹"** (drop the model folder here, or click to choose) and select **the VAULT 3D model folder you bought** (or drag the folder onto it).
+Once the page is open, switch to **EN**, click **"No print folder connected"** at the top right, then click **"Drop the complete model folder here, or click to choose"** and select **the VAULT 3D model folder you bought** (or drag the folder onto it).
 
 **Without it you only get 4 demo units and cannot export print files.** Model files are read on your computer only and are never uploaded.
 

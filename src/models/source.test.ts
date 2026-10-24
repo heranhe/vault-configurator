@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { catalogPaths } from '../core/catalog';
+import { catalogFileSize, catalogPaths, normPath } from '../core/catalog';
 import { connectPath, fromDrop, fromFileList, lookup, pickFolder, type ImportProgress, type ModelSource } from './source';
 import { sourceIndex } from './source-index';
 
@@ -38,11 +38,65 @@ describe('目录识别与文件归属', () => {
     expect(sourceIndex(flat).report.ambiguous).toEqual(['S5 Baseplate.stl']);
   });
 
-  it('同模型多个副本、归一化后重名都保留并显式提示，不覆盖', async () => {
+  it('同模型多份完全相同的副本：用路径排序后的第一份，其余列为重复副本', async () => {
     const source = (await fromFileList([file(`旧版/${box}`), file(`新版/${box}`), file('S5 BOX 1F.STL')]))!;
     expect(source.files.size).toBe(3);
+    expect(lookup(source, box)).toBeDefined();
+    const { report } = sourceIndex(source);
+    expect(report).toMatchObject({ matched: 1, ambiguous: [] });
+    expect(report.duplicates).toHaveLength(2);
+    expect(report.missing).not.toContain(normPath(box));
+  });
+
+  const sized = (entries: [string, number][]): ModelSource => ({
+    kind: 'folder', name: 'test',
+    files: new Map(entries.map(([path, size]) => [path, { path, size, version: '1', read: async () => new Blob() }])),
+  });
+
+  it('多份副本大小不同：用与官方文件字节数一致的那份', () => {
+    const official = catalogFileSize(normPath(box))!;
+    const source = sized([[`旧版/${box}`, official - 100], [`新版/${box}`, official]]);
+    expect(lookup(source, box)?.path).toBe(`新版/${box}`);
+    expect(sourceIndex(source).report.duplicates).toEqual([`旧版/${box}`]);
+  });
+
+  it('多份副本大小不同且都对不上官方文件：不猜，列为待确认并算作缺少', () => {
+    const official = catalogFileSize(normPath(box))!;
+    const source = sized([[`旧版/${box}`, official - 100], [`新版/${box}`, official + 100]]);
     expect(lookup(source, box)).toBeUndefined();
-    expect(sourceIndex(source).report.ambiguous).toHaveLength(3);
+    const { report } = sourceIndex(source);
+    expect(report.ambiguous).toHaveLength(2);
+    expect(report.missing).toContain(normPath(box));
+  });
+
+  it('另一批模型包改了名（Runner Slide / Runner Slide XL）：按宽松名认出，并标为改名匹配', () => {
+    const runners = '01. DRAWERS/07. Universal/Runners/';
+    const renamed: [string, string][] = [
+      ['Runners/x4 Runner Slide.stl', `${runners}x4 Runner Slides.stl`],
+      ['Runners/x4 Runner Guide.stl', `${runners}x4 Runner Guides.stl`],
+      ['XL Runners/x4 Runner Slide XL.stl', `${runners}XL4 Runner Slides.stl`],
+      ['XL Runners/x4 Runner Guide XL.stl', `${runners}XL4 Runner Guides.stl`],
+    ];
+    const source = sized(renamed.map(([path]) => [path, 1000]));
+    for (const [path, logical] of renamed) expect(lookup(source, logical)?.path, logical).toBe(path);
+    const { report } = sourceIndex(source);
+    expect(report.renamed).toHaveLength(4);
+    expect(report.unmatched).toEqual([]);
+  });
+
+  it('宽松名在目录里不唯一（抽屉 / 收纳箱都有 S1F）时不按宽松名猜', () => {
+    // 「S1F_.stl」宽松名是 s1f，目录里有多个（抽屉面板、收纳箱面板、洞洞板…）
+    const source = sized([['S1F_.stl', 1000]]);
+    expect(sourceIndex(source).report.renamed).toEqual([]);
+    expect(sourceIndex(source).report.unmatched).toEqual(['S1F_.stl']);
+  });
+
+  it('缺少的文件逐个列出：完整包 723 个，少两个就报两个', () => {
+    const drop = catalogPaths.filter((p) => p.includes('runner slides')).slice(0, 2);
+    const source = sized(catalogPaths.filter((p) => !drop.includes(p)).map((p) => [p, catalogFileSize(p)!]));
+    const { report } = sourceIndex(source);
+    expect(report.matched).toBe(catalogPaths.length - 2);
+    expect(report.missing).toEqual(drop);
   });
 
   it('忽略说明文件和 macOS 资源文件，并列出未知 STL', async () => {

@@ -15,7 +15,7 @@ export type AsmStep = {
   from?: Record<string, Vec3>;
   /** 新零件先进场、再整体移动（默认先移动、后进场） */
   enterFirst?: boolean;
-  /** 不移动但需要强调的零件（如限位块藏在导轨部件里） */
+  /** 不移动但需要强调的零件 */
   focus?: string[];
 };
 
@@ -78,13 +78,13 @@ function drawerSteps(spec: Extract<UnitSpec, { type: 'drawer' }>): AsmStep[] {
     },
     {
       title: '整套推进模组', ref: '抽屉组装 第 10 步',
-      note: '把装好的盒体对准模组开口，一直推到底。',
+      note: '把装好的盒体对准模组开口，一直推到底。接下来还需装入左右两颗导轨限位块，再翻转安装底部卡扣。',
       enterFirst: true,
       place: { module: O, ...all(boxParts, O), runners: O, 'runner-slides': O, ...(spec.gearedRails !== false ? { 'geared-rails': O } : {}), ...all(front, O) }, from: { module: [0, -60, 0] },
     },
     {
-      title: '推入限位块', ref: '抽屉组装 第 11 步',
-      note: '确认盒体完全卡到位以后，再把两颗导轨限位块从两侧推进去。',
+      title: '推入左右限位块 ×2', ref: '抽屉组装 第 11 步',
+      note: '确认盒体完全卡到位以后，再把两颗导轨限位块分别从左、右两侧推进导轨，左右各一颗。装好后再翻转模组安装底部卡扣。',
       place: { 'runner-stoppers': O }, from: { 'runner-stoppers': [-50, 0, 0] },
     },
     {

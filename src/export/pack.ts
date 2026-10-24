@@ -1,3 +1,4 @@
+import { t, useLocale, type Locale } from '../i18n';
 // 把选中的零件从用户本地复制打包。模型文件只在用户电脑上读写，不上传
 import { bomCsv, type BomRow } from '../core/bom';
 import { colorById } from '../data/colors';
@@ -5,17 +6,18 @@ import { lookup, type ModelSource } from '../models/source';
 
 const safe = (s: string) => s.replace(/[\\/:*?"<>|]/g, '_');
 
-export function zipEntryName(r: BomRow) {
+export function zipEntryName(r: BomRow, locale: Locale = useLocale.getState().locale) {
   const c = colorById(r.colorId);
   const base = r.fileName.replace(/\s*\(Turn On Supports\)/i, '').replace(/\s*\.stl$/i, '');
-  const tag = r.supports ? ' [开支撑]' : '';
-  return `${safe(`${c.nameZh}_${c.nameEn.replace(/\s/g, '')}_${c.id}`)}/${safe(base)}${tag}__x${r.qty}.stl`;
+  const tag = r.supports ? ` ${t('[开支撑]', locale)}` : '';
+  return `${safe(`${locale === 'en' ? '' : c.nameZh + '_'}${c.nameEn.replace(/\s/g, '')}_${c.id}`)}/${safe(base)}${tag}__x${r.qty}.stl`;
 }
 
 /** 流式打包：Chrome / Edge 直接写到磁盘，不占内存；其他浏览器退回 Blob 下载 */
 export async function packZip(rows: BomRow[], hardware: Record<string, number>, source: ModelSource, projectJson: string, onProgress: (n: number, total: number) => void) {
+  const locale = useLocale.getState().locale;
   const date = new Date().toISOString().slice(0, 10);
-  const name = `VAULT_方案_${date}.zip`;
+  const name = t(`VAULT_方案_${date}.zip`, locale);
   // 在异步加载打包库前打开保存窗口，保留浏览器要求的用户手势授权。
   const w = window as unknown as { showSaveFilePicker?: (o: object) => Promise<FileSystemFileHandle> };
   const handle = w.showSaveFilePicker
@@ -25,13 +27,13 @@ export async function packZip(rows: BomRow[], hardware: Record<string, number>, 
   const total = rows.length;
   let n = 0;
   async function* entries() {
-    yield { name: '清单.csv', input: bomCsv(rows, hardware) };
-    yield { name: '方案.json', input: projectJson };
-    yield { name: 'README.txt', input: readme(rows, hardware) };
+    yield { name: t('清单.csv', locale), input: bomCsv(rows, hardware, locale) };
+    yield { name: t('方案.json', locale), input: projectJson };
+    yield { name: 'README.txt', input: readme(rows, hardware, locale) };
     for (const r of rows) {
       const f = lookup(source, r.path);
       if (!f) continue;
-      yield { name: zipEntryName(r), input: await f.read() };
+      yield { name: zipEntryName(r, locale), input: await f.read() };
       onProgress(++n, total);
     }
   }
@@ -47,9 +49,9 @@ export async function packZip(rows: BomRow[], hardware: Record<string, number>, 
   }
 }
 
-function readme(rows: BomRow[], hardware: Record<string, number>) {
+export function readme(rows: BomRow[], hardware: Record<string, number>, locale: Locale = useLocale.getState().locale) {
   const sup = rows.filter((r) => r.supports).map((r) => `  - ${r.fileName}`);
-  const hw = Object.entries(hardware).map(([k, v]) => `  - ${k} ×${v}`);
+  const hw = Object.entries(hardware).map(([k, v]) => `  - ${t(k, locale)} ×${v}`);
   return [
     'VAULT 模块化收纳系统 · 打印包',
     '',
@@ -65,5 +67,5 @@ function readme(rows: BomRow[], hardware: Record<string, number>) {
     ...(hw.length ? hw : ['  （无）']),
     '',
     '标注「数量待确认」的零件数量为估算，请对照说明书核对。',
-  ].join('\r\n');
+  ].map((line) => line.startsWith('  - ') ? line : t(line, locale)).join('\r\n');
 }

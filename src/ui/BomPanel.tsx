@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { bomCsv, buildBom, type BomRow } from '../core/bom';
 import { colorById } from '../data/colors';
@@ -65,7 +66,7 @@ export function BomPanel() {
 
   const downloadCsv = () => {
     const blob = new Blob([bomCsv(rows, hardware)], { type: 'text/csv;charset=utf-8' });
-    Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'VAULT_打印清单.csv' }).click();
+    Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: t('VAULT_打印清单.csv') }).click();
   };
 
   const pack = async () => {
@@ -85,38 +86,38 @@ export function BomPanel() {
   return (
     <footer className={`bom card ${open ? 'open' : ''}`}>
       <div className="bom-bar">
-        <button className="bom-title" onClick={() => setOpen(!open)}>{open ? '▾' : '▸'} 打印清单：</button>
+        <button className="bom-title" onClick={() => setOpen(!open)}>{open ? '▾' : '▸'} {t(" 打印清单：")}</button>
         <span className="muted">
-          {rows.length} 个文件 · {totalParts} 件 · {groups.length} 色 · 约 {fmtSize(totalSize)}
-          {source && missingLocal > 0 && <span className="bad-text"> · 本地缺 {missingLocal} 个</span>}
+          {rows.length} {t(" 个文件 · ")}{totalParts} {t(" 件 · ")}{groups.length} {t(" 色 · 约 ")}{fmtSize(totalSize)}
+          {source && missingLocal > 0 && <span className="bad-text"> {t(" · 本地缺 ")}{missingLocal} {t(" 个")}</span>}
         </span>
-        {!open && hw.length > 0 && <span className="muted"> · 紧固件 {hw.map(([k, v]) => `${k.replace(' 螺栓', '')}×${v}`).join('，')}</span>}
+        {!open && hw.length > 0 && <span className="muted"> {t(" · 紧固件 ")}{hw.map(([k, v]) => `${t(k)}×${v}`).join(' · ')}</span>}
         <span className="spacer" />
-        <button className="pill" onClick={downloadCsv} disabled={!rows.length}>清单 CSV</button>
-        <button className="pill pill-yellow" onClick={pack} disabled={!rows.length || !!progress}>{progress ?? '⬇ 打包下载'}</button>
+        <button className="pill" onClick={downloadCsv} disabled={!rows.length}>{t("清单 CSV")}</button>
+        <button className="pill pill-yellow" onClick={pack} disabled={!rows.length || !!progress}>{t(progress ?? '⬇ 打包下载')}</button>
       </div>
       {focused && <div className="bom-focus" role="status">
-        <b>当前零件：{focused.name}</b>
-        <span>{focused.rows.length ? focused.rows.map((r) => shortName(r.fileName)).join(' · ') : '外购五金（见采购清单）'}</span>
+        <b>{t("当前零件：")}{t(focused.name)}</b>
+        <span>{t(focused.rows.length ? focused.rows.map((r) => shortName(r.fileName)).join(' · ') : '外购五金（见采购清单）')}</span>
       </div>}
       {open && rows.length > 0 && (
         <div className={`bom-body show-${tab}`}>
           <div className="bom-tabs seg" role="tablist">
-            <button role="tab" aria-selected={tab === 'print'} className={tab === 'print' ? 'on' : ''} onClick={() => setTab('print')}>打印件 {totalParts}</button>
-            <button role="tab" aria-selected={tab === 'hw'} className={tab === 'hw' ? 'on' : ''} onClick={() => setTab('hw')}>紧固件 {hwTotal}</button>
+            <button role="tab" aria-selected={tab === 'print'} className={tab === 'print' ? 'on' : ''} onClick={() => setTab('print')}>{t("打印件 ")}{totalParts}</button>
+            <button role="tab" aria-selected={tab === 'hw'} className={tab === 'hw' ? 'on' : ''} onClick={() => setTab('hw')}>{t("紧固件 ")}{hwTotal}</button>
           </div>
           <div className="bom-groups" ref={groupStrip}>
-            {groups.length === 0 && <p className="muted empty">台面上还没有单元。从左侧拖一个进来。</p>}
+            {groups.length === 0 && <p className="muted empty">{t("台面上还没有单元。从左侧拖一个进来。")}</p>}
             {groups.map(([colorId, list]) => {
               const c = colorById(colorId);
               return (
                 <section key={colorId} className="bom-group">
                   <header>
                     <span className="swatch sm" style={{ background: c.hex }} />
-                    <b>{c.nameZh}</b>
+                    <b>{t(c.nameZh)}</b>
                     <span className="slot-code">{c.id}</span>
                     <span className="spacer" />
-                    <span className="slot-code">{list.reduce((n, r) => n + r.qty * r.piecesPerFile, 0)} 件</span>
+                    <span className="slot-code">{list.reduce((n, r) => n + r.qty * r.piecesPerFile, 0)} {t(" 件")}</span>
                   </header>
                   <ul>
                     {list.map((r) => {
@@ -128,21 +129,21 @@ export function BomPanel() {
                             type="button"
                             ref={(el) => void (el ? rowButtons.current.set(r.key, el) : rowButtons.current.delete(r.key))}
                             className={`bom-part ${active ? 'on' : ''}`}
-                            title={`点击在所属单元的爆炸图中高亮：${r.partName}\n${r.path}`}
-                            aria-label={`查看 ${shortName(r.fileName)}：${r.partName}`}
+                            title={t(`点击在所属单元的爆炸图中高亮：${r.partName}\n${r.path}`)}
+                            aria-label={t(`查看 ${shortName(r.fileName)}：${r.partName}`)}
                             aria-pressed={active}
                             disabled={r.tooling}
                             onClick={() => useStore.getState().focusBomPart(r.key)}
                           >
-                            <span className="qty">×{r.qty}{r.uncertain && <sup title="数量待确认">*</sup>}</span>
+                            <span className="qty">×{r.qty}{r.uncertain && <sup title={t("数量待确认")}>*</sup>}</span>
                             <span className="bom-part-text">
                               <span className="fname">{shortName(r.fileName)}</span>
-                              {active && <span className="bom-part-name">{focused?.name}</span>}
+                              {active && <span className="bom-part-name">{t(focused?.name)}</span>}
                             </span>
-                            {r.piecesPerFile > 1 && <span className="tag" title="一份 STL 中的独立打印件数">{r.piecesPerFile} 件/份</span>}
-                            {r.supports && <span className="tag warn" title="切片时必须开支撑">支撑</span>}
-                            {r.tooling && <span className="tag" title="整套方案共用，装配后取下">工装</span>}
-                            {local === false && <span className="tag bad">缺</span>}
+                            {r.piecesPerFile > 1 && <span className="tag" title={t("一份 STL 中的独立打印件数")}>{r.piecesPerFile} {t(" 件/份")}</span>}
+                            {r.supports && <span className="tag warn" title={t("切片时必须开支撑")}>{t("支撑")}</span>}
+                            {r.tooling && <span className="tag" title={t("整套方案共用，装配后取下")}>{t("工装")}</span>}
+                            {local === false && <span className="tag bad">{t("缺")}</span>}
                           </button>
                         </li>
                       );
@@ -154,23 +155,23 @@ export function BomPanel() {
           </div>
           <aside className="bom-hw">
             <div className="bom-hw-heading">
-              <h4>紧固件采购清单</h4>
-              <label className="hardware-toggle" title="仅切换紧固件名称和引线，模型始终显示，采购数量不变">
+              <h4>{t("紧固件采购清单")}</h4>
+              <label className="hardware-toggle" title={t("仅切换紧固件名称和引线，模型始终显示，采购数量不变")}>
                 <input type="checkbox" role="switch" checked={showHardwareLabels} onChange={(e) => useStore.getState().setShowHardwareLabels(e.target.checked)} />
-                <span>显示紧固件名称</span>
+                <span>{t("显示紧固件名称")}</span>
               </label>
             </div>
             {hw.length === 0 ? (
-              <p className="muted small">暂无</p>
+              <p className="muted small">{t("暂无")}</p>
             ) : (
               <table>
                 <thead>
-                  <tr><th>型号</th><th className="r">用量</th><th className="r">建议买</th></tr>
+                  <tr><th>{t("型号")}</th><th className="r">{t("用量")}</th><th className="r">{t("建议买")}</th></tr>
                 </thead>
                 <tbody>
                   {hw.map(([k, v]) => (
                     <tr key={k}>
-                      <td>{k}</td>
+                      <td>{t(k)}</td>
                       <td className="r">{v}</td>
                       <td className="r"><b>{buyQty(k, v)}</b></td>
                     </tr>
@@ -178,7 +179,7 @@ export function BomPanel() {
                 </tbody>
               </table>
             )}
-            <p className="muted small">螺栓 / 螺钉多备 10%，按 10 颗取整；其余五金按实际用量。</p>
+            <p className="muted small">{t("螺栓 / 螺钉多备 10%，按 10 颗取整；其余五金按实际用量。")}</p>
           </aside>
         </div>
       )}

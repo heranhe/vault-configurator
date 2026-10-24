@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { useEffect, useState } from 'react';
 import { useStore } from '../store';
 
@@ -24,14 +25,14 @@ export function MobileTabs({ sheet, onChange }: { sheet: Sheet | null; onChange:
   const selected = useStore((s) => !!s.selectedId);
   const badge: Record<Sheet, string | null> = { library: null, unit: selected ? '●' : null, bom: count ? String(count) : null };
   return (
-    <nav className="mobile-tabs" aria-label="面板">
+    <nav className="mobile-tabs" aria-label={t("面板")}>
       {TABS.map(([k, label]) => (
         <button key={k} className={sheet === k ? 'on' : ''} aria-pressed={sheet === k} onClick={() => onChange(sheet === k ? null : k)}>
-          {label}
+          {t(label)}
           {badge[k] && <span className="mobile-badge">{badge[k]}</span>}
         </button>
       ))}
-      <button className="mobile-collapse" disabled={!sheet} aria-label="收起面板" onClick={() => onChange(null)}>▾</button>
+      <button className="mobile-collapse" disabled={!sheet} aria-label={t("收起面板")} onClick={() => onChange(null)}>▾</button>
     </nav>
   );
 }

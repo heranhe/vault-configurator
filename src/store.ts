@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { buildBom } from './core/bom';
+import { migrateBaseHeight } from './core/layout-migration';
 import { autoPlace, columnOf, type Drop } from './core/rules';
 import type { ColorSlot, Placement, UnitSpec, Vec3 } from './core/types';
 import { serverSource, type ModelSource } from './models/source';
@@ -22,6 +23,7 @@ type State = {
   explodeId: string | null;
   explodeT: number;
   xray: boolean;
+  panMode: boolean;
   showHardwareLabels: boolean;
   palette: Record<ColorSlot, string>;
   colorScope: 'all' | 'unit';
@@ -85,7 +87,10 @@ const STORAGE_KEY = 'vault-prototype-v3'; // v2：叠放节距改为 48 mm/F；v
 function load(): Pick<State, 'placements' | 'palette'> | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const saved = JSON.parse(raw);
+    if (!saved.layoutVersion) saved.placements = migrateBaseHeight(saved.placements);
+    return saved;
   } catch {
     return null;
   }
@@ -115,6 +120,7 @@ export const useStore = create<State>((set, get) => ({
   explodeId: null,
   explodeT: 0.7,
   xray: false,
+  panMode: false,
   showHardwareLabels: false,
   palette: { ...DEFAULT_PALETTE, ...saved?.palette },
   colorScope: 'all',
@@ -268,7 +274,7 @@ export const useStore = create<State>((set, get) => ({
 useStore.subscribe((s, prev) => {
   if (s.placements === prev.placements && s.palette === prev.palette) return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ placements: s.placements, palette: s.palette }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ placements: s.placements, palette: s.palette, layoutVersion: 1 }));
   } catch {
     /* 隐私模式等情况下忽略 */
   }

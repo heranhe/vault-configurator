@@ -577,15 +577,25 @@ function baseParts(spec: Extract<UnitSpec, { type: 'base' }>): Part[] {
   const { width: W, depth: D } = spec;
   const code = `${W}${D}`;
   const lift = BASE_LIFT_MM;
+  const axleY = lift + 20, axleZ = 25; // Base STL：孔心距底面 20、后沿 30；底座后沿为 z=-5。
+  const footDepth = 92, footHeight = 60.5;
+  const footBacks = spec.mode === 'wheels' ? [d - 89.5] : [-2.5, d - 89.5];
   const parts: Part[] = [
     {
       id: 'base', name: `${code} 底座`, slot: '结构', blocks: [{ at: [0, lift, -5], size: [w, BASE_BODY_MM, d + 10] }], explode: [0, 90, 0],
+      // S/M 原文件安装槽朝 -Y，L/XL 摆正后朝 +X；显式翻正，避免自动定向把底面朝上。
+      orient: { rotation: W === 'S' || W === 'M' ? [0, 0, 180] : [0, 0, 90] },
       files: [{ path: `${MOD}/Base/${W}/${code} ${D >= 6 ? 'Base Whole' : 'Base'}.stl`, qty: 1 }],
     },
     {
       // 前支脚（推车模式）或前后各一（支脚模式）
       id: 'feet', name: `${W} 支脚`, slot: '功能件', real: 'each',
-      blocks: (spec.mode === 'wheels' ? [d - 75] : [15, d - 75]).map((z) => ({ at: [30, 0, z], size: [w - 60, lift + 12, 60.5] }) as Block),
+      // 原文件 +Z 是支脚向下的厚度，平安装面必须朝上；前脚高的一端朝前。
+      // 0.5mm 安装凸台嵌进底座，支脚和后轮的最低点均在地面。
+      orient: { rotation: [90, 0, 180] },
+      blocks: footBacks.map((z, i) => ({ at: [30, 0, z], size: [w - 60, footHeight, footDepth],
+        ...(spec.mode === 'feet' && i === 0 ? { flip: [90, 0, 0] as Vec3 } : {}),
+      })),
       explode: [0, -50, 0],
       files: [{ path: `${MOD}/Feet/${W} Feet.stl`, qty: spec.mode === 'wheels' ? 1 : 2 }],
     },
@@ -594,8 +604,8 @@ function baseParts(spec: Extract<UnitSpec, { type: 'base' }>): Part[] {
     // 改装第 2–6 页：每侧一个衬套、一个轮盘、一条轮胎和一个外盖；每份 STL 都只有一件。
     // 每种文件单独建 Part，否则真实模型预览只加载 files[0]，其余轮组零件会消失。
     const wheelBlocks = (thickness: number, diameter: number, inner: number): Block[] => [
-      { at: [-inner - thickness, lift - diameter / 2, lift - diameter / 2], size: [thickness, diameter, diameter], flip: [0, -90, 0], slide: [-100, 0, 0] },
-      { at: [w + inner, lift - diameter / 2, lift - diameter / 2], size: [thickness, diameter, diameter], flip: [0, 90, 0], slide: [100, 0, 0] },
+      { at: [-inner - thickness, axleY - diameter / 2, axleZ - diameter / 2], size: [thickness, diameter, diameter], flip: [0, -90, 0], slide: [-100, 0, 0] },
+      { at: [w + inner, axleY - diameter / 2, axleZ - diameter / 2], size: [thickness, diameter, diameter], flip: [0, 90, 0], slide: [100, 0, 0] },
     ];
     parts.push(
       {
@@ -625,23 +635,23 @@ function baseParts(spec: Extract<UnitSpec, { type: 'base' }>): Part[] {
       },
       {
         id: 'wheel-axle', name: `Ø16 轮轴杆 ${ROD_MM[W]}mm`, slot: '结构', hardware: true, real: 'none', fixedColor: '10102',
-        blocks: [{ at: [(w - ROD_MM[W]) / 2, lift - 8, lift - 8], size: [ROD_MM[W], 16, 16], cyl: true, cylAxis: 'x' }],
+        blocks: [{ at: [(w - ROD_MM[W]) / 2, axleY - 8, axleZ - 8], size: [ROD_MM[W], 16, 16], cyl: true, cylAxis: 'x' }],
         explode: [0, 0, -130], files: [],
       },
       {
         id: 'wheel-bearings', name: '6205ZZ 轴承 ×2', slot: '结构', hardware: true, real: 'none', fixedColor: '10102',
-        blocks: [-20, w + 5].map((x) => ({ at: [x, lift - 26, lift - 26], size: [15, 52, 52], cyl: true, cylAxis: 'x', bore: 25 })),
+        blocks: [-20, w + 5].map((x) => ({ at: [x, axleY - 26, axleZ - 26], size: [15, 52, 52], cyl: true, cylAxis: 'x', bore: 25 })),
         explode: [0, 0, -150], files: [],
       },
       {
         id: 'wheel-collars', name: 'SCSAW 轴锁紧环 ×2', slot: '结构', hardware: true, real: 'none', fixedColor: '10102',
-        blocks: [-30, w + 20].map((x) => ({ at: [x, lift - 15, lift - 15], size: [10, 30, 30], cyl: true, cylAxis: 'x', bore: 16 })),
+        blocks: [-30, w + 20].map((x) => ({ at: [x, axleY - 15, axleZ - 15], size: [10, 30, 30], cyl: true, cylAxis: 'x', bore: 16 })),
         explode: [0, 0, -170], files: [],
       },
       {
         id: 'wheel-cover-bolts', name: '轮盖 M4×25 螺栓 ×12', slot: '功能件', hardware: true, blocksPerPiece: 2, real: 'none', fixedColor: '10101',
         blocks: [-1, 1].flatMap((side) => Array.from({ length: 6 }, (_, i): Block[] => {
-          const a = i * Math.PI / 3, y = lift + 49 * Math.cos(a), z = lift + 49 * Math.sin(a);
+          const a = i * Math.PI / 3, y = axleY + 49 * Math.cos(a), z = axleZ + 49 * Math.sin(a);
           return [
             { at: [side < 0 ? -45 : w + 42, y - 3.5, z - 3.5], size: [3, 7, 7], cyl: true, cylAxis: 'x' },
             { at: [side < 0 ? -42 : w + 17, y - 2, z - 2], size: [25, 4, 4], cyl: true, cylAxis: 'x' },
@@ -653,9 +663,9 @@ function baseParts(spec: Extract<UnitSpec, { type: 'base' }>): Part[] {
   }
   parts.push({
     id: 'feet-bolts', name: `支脚 M6×90 螺栓 ×${spec.mode === 'wheels' ? 2 : 4}`, slot: '功能件', hardware: true, blocksPerPiece: 2, real: 'none', fixedColor: '10101',
-    blocks: (spec.mode === 'wheels' ? [d - 44.75] : [45.25, d - 44.75]).flatMap((z) => [45, w - 45].flatMap((x): Block[] => [
-      { at: [x - 5, 3, z - 5], size: [10, 4, 10], cyl: true, cylAxis: 'y' },
-      { at: [x - 3, 7, z - 3], size: [6, 90, 6], cyl: true, cylAxis: 'y' },
+    blocks: footBacks.map((z, i) => z + (spec.mode === 'feet' && i === 0 ? 30 : footDepth - 30)).flatMap((z) => [60.88, w - 60.88].flatMap((x): Block[] => [
+      { at: [x - 5, 0.1, z - 5], size: [10, 4, 10], cyl: true, cylAxis: 'y' },
+      { at: [x - 3, 4.1, z - 3], size: [6, 90, 6], cyl: true, cylAxis: 'y' },
     ])),
     explode: [0, -85, 0], files: [],
   });

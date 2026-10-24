@@ -1,3 +1,4 @@
+import { t, useLocale, type Locale } from '../i18n';
 import { colorById } from '../data/colors';
 import { resolveFile } from './catalog';
 import { hardwareOf, partsOf } from './parts';
@@ -62,14 +63,15 @@ export function buildBom(placements: Placement[], palette: Record<ColorSlot, str
   return { rows: list, hardware };
 }
 
-export function bomCsv(rows: BomRow[], hardware: Record<string, number>) {
+export function bomCsv(rows: BomRow[], hardware: Record<string, number>, locale: Locale = useLocale.getState().locale) {
+  const tr = (value: string) => t(value, locale);
   const esc = (s: string | number) => `"${String(s).replace(/"/g, '""')}"`;
-  const lines = [['文件', '路径', '零件', '颜色', '色号', '打印份数', '每份件数', '零件总数', '需开支撑', '数量待确认'].map(esc).join(',')];
+  const lines = [['文件', '路径', '零件', '颜色', '色号', '打印份数', '每份件数', '零件总数', '需开支撑', '数量待确认'].map(tr).map(esc).join(',')];
   for (const r of rows) {
     const c = colorById(r.colorId);
-    lines.push([r.fileName, r.path, r.partName, `${c.nameZh} ${c.nameEn}`, c.id, r.qty, r.piecesPerFile, r.qty * r.piecesPerFile, r.supports ? '是' : '', r.uncertain ? '是' : ''].map(esc).join(','));
+    lines.push([r.fileName, r.path, tr(r.partName), locale === 'en' ? c.nameEn : `${c.nameZh} ${c.nameEn}`, c.id, r.qty, r.piecesPerFile, r.qty * r.piecesPerFile, r.supports ? tr('是') : '', r.uncertain ? tr('是') : ''].map(esc).join(','));
   }
-  lines.push('', [esc('五金件'), esc('数量')].join(','));
-  for (const [k, n] of Object.entries(hardware)) lines.push([esc(k), esc(n)].join(','));
+  lines.push('', [esc(tr('五金件')), esc(tr('数量'))].join(','));
+  for (const [k, n] of Object.entries(hardware)) lines.push([esc(tr(k)), esc(n)].join(','));
   return '﻿' + lines.join('\n');
 }
