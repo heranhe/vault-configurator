@@ -28,3 +28,10 @@ npm run demo-models -- "<包含 01. DRAWERS 的模型包内层目录>"
 ## 验证
 
 `npm test`、`npm run build`。测试覆盖模型文件读取匹配、方案保存、按需加载、并发限制、缓存命中和禁止非体验规格在线加载。
+
+## 体验模型不在 Git 仓库里
+
+`public/demo-models/` 下的 `.mesh.gz` 网格和 `report.json` 由付费的 VAULT 模型包转换而来，**不随仓库发布**（已写入 `.gitignore`，也已从 Git 历史中清除）；只保留清单文件 `manifest.json`。
+
+- 本地构建网站或离线包前，需要用自己购买的模型包生成：`npm run demo-models`（见 `tools/build-demo-models.ts`）。
+- 没有这些文件时网站仍能运行，体验单元显示为占位方块；依赖真实网格的两组测试（`placement.test.ts`、`drawer-placement.test.ts`）会自动跳过。

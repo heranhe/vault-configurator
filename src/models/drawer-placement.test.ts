@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
@@ -24,7 +24,9 @@ function geometry(part: Part) {
   return geo;
 }
 
-describe('抽屉真实预览网格逐件验证', () => {
+// 体验模型网格不随 Git 仓库发布（来自付费模型包，见 docs/preview-models.md）；本地没有时跳过，用 npm run demo-models 生成
+const hasModels = Object.values(manifest.files).every((e) => existsSync(new URL(`../../public/demo-models/${e.file}`, import.meta.url)));
+describe.skipIf(!hasModels)('抽屉真实预览网格逐件验证', () => {
   it('成套齿条、滑块、导槽和弹簧确实能从发布网格拆成两件，不重复显示整个摆盘', () => {
     for (const id of ['geared-rails', 'runner-slides', 'runners', 'springs']) {
       const part = partsOf(drawer).find((p) => p.id === id)!;

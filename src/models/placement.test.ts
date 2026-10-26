@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
@@ -35,7 +35,9 @@ function localPoint(g: THREE.BufferGeometry, relative: [number, number, number],
   return g.boundingBox!.min.clone().add(new THREE.Vector3(...relative)).applyMatrix4(m);
 }
 
-describe('收纳箱真实网格装配回归', () => {
+// 体验模型网格不随 Git 仓库发布（来自付费模型包，见 docs/preview-models.md）；本地没有时跳过，用 npm run demo-models 生成
+const hasModels = Object.values(manifest.files).every((e) => existsSync(new URL(`../../public/demo-models/${e.file}`, import.meta.url)));
+describe.skipIf(!hasModels)('收纳箱真实网格装配回归', () => {
   it.each([1, 2] as const)('%iF 上下铰链和两根连杆同轴，安装面贴合后壁与箱盖', (height) => {
     const bottom = part('hinges', height), top = part('hinge-tops', height), roof = part('roof', height);
     const moduleH = height === 1 ? 50.8 : 84.8;
