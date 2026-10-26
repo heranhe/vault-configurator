@@ -8,4 +8,4 @@ tmp/
 dist-offline/
 # 体验模型网格由付费模型包转换而来，不进仓库；manifest.json 只是文件清单，保留。本地用 npm run demo-models 生成
 public/demo-models/*.mesh.gz
-public/demo-models/report.json
+public/demo-models/report*.json
