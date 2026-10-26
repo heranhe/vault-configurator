@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { catalogFileSize, catalogPaths, normPath } from '../core/catalog';
-import { connectPath, fromDrop, fromFileList, lookup, pickFolder, type ImportProgress, type ModelSource } from './source';
+import { connectPath, fromDrop, fromFileList, importErrorMessage, lookup, pickFolder, type ImportProgress, type ModelSource } from './source';
 import { sourceIndex } from './source-index';
 
 const box = '01. DRAWERS/01. S Families/S5/Boxes/S5 Box 1F.stl';
@@ -159,6 +159,46 @@ describe('导入读取与进度', () => {
     vi.stubGlobal('window', {});
     vi.stubGlobal('document', { body: { append: vi.fn() }, createElement: () => ({ remove: vi.fn(), click() { (this as unknown as { oncancel: () => void }).oncancel(); } }) });
     await expect(pickFolder()).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  const encodingError = () => Object.assign(new Error('A URI supplied to the API was malformed, or the resulting Data URL has exceeded the URL length limitations for Data URLs.'), { name: 'EncodingError' });
+  const failingDir = (name: string) => ({ kind: 'directory', name, values() { return { [Symbol.asyncIterator]() { return { next: async () => { throw encodingError(); } }; } }; } });
+
+  it('某个子文件夹读不了：其余照常导入，读不了的记为读取失败，不让整个导入失败', async () => {
+    const root = dir('VAULT', [handleFile('S5 Box 1F.stl'), failingDir('坏文件夹'), handleFile('S5 Box 2F.stl')]);
+    vi.stubGlobal('window', { showDirectoryPicker: async () => root });
+    const source = (await pickFolder())!;
+    expect(source.files.size).toBe(2);
+    expect(source.failed).toEqual(['VAULT/坏文件夹']);
+    expect(sourceIndex(source).report.failed).toEqual(['VAULT/坏文件夹']);
+  });
+
+  it('根文件夹就读不了：抛出浏览器的真实原因，而不是「没有找到 STL」', async () => {
+    vi.stubGlobal('window', { showDirectoryPicker: async () => failingDir('VAULT') });
+    await expect(pickFolder()).rejects.toMatchObject({ name: 'EncodingError' });
+  });
+
+  it('双击打开（file://）时不用 showDirectoryPicker，改走 webkitdirectory', async () => {
+    const picker = vi.fn(async () => dir('VAULT', []));
+    vi.stubGlobal('window', { showDirectoryPicker: picker });
+    vi.stubGlobal('location', { protocol: 'file:' });
+    vi.stubGlobal('document', { body: { append: vi.fn() }, createElement: () => ({ remove: vi.fn(), click() { (this as unknown as { oncancel: () => void }).oncancel(); } }) });
+    await expect(pickFolder()).rejects.toMatchObject({ name: 'AbortError' });
+    expect(picker).not.toHaveBeenCalled();
+  });
+
+  it('「兼容方式」强制走 webkitdirectory，即使浏览器有 showDirectoryPicker', async () => {
+    const picker = vi.fn(async () => dir('VAULT', []));
+    vi.stubGlobal('window', { showDirectoryPicker: picker });
+    vi.stubGlobal('document', { body: { append: vi.fn() }, createElement: () => ({ remove: vi.fn(), click() { (this as unknown as { oncancel: () => void }).oncancel(); } }) });
+    await expect(pickFolder(undefined, undefined, { compat: true })).rejects.toMatchObject({ name: 'AbortError' });
+    expect(picker).not.toHaveBeenCalled();
+  });
+
+  it('浏览器的 EncodingError 换成能看懂的中文建议', () => {
+    expect(importErrorMessage(encodingError())).toContain('改用兼容方式');
+    expect(importErrorMessage(Object.assign(new Error('x'), { name: 'NotAllowedError' }))).toContain('权限');
+    expect(importErrorMessage(new Error('这个文件夹里没有找到 STL 文件'))).toBe('这个文件夹里没有找到 STL 文件');
   });
 
   it('路径进度流支持分块 UTF-8，并保留所选子目录名称用于同名匹配', async () => {

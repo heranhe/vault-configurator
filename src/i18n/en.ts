@@ -537,7 +537,9 @@ export const en: Record<string, string> = {
   "「购买模型」「小红书」等链接指向第三方网站，其内容、交易和服务由第三方负责。": "Links such as Buy models and Xiaohongshu lead to third-party websites. Their content, transactions and services are the responsibility of those third parties.",
   "隐私说明": "Privacy",
   "不收集个人信息。": "No personal data collection. ",
-  "无需注册账号，不收集姓名、联系方式等个人信息；没有广告和第三方统计代码。": "No account is required. Names, contact details and other personal information are not collected. There are no ads or third-party analytics scripts.",
+  "无需注册账号，不收集姓名、联系方式等个人信息；没有广告。": "No account is required. Names, contact details and other personal information are not collected. There are no ads.",
+  "访问统计。": "Visit analytics. ",
+  "在线版使用 Cloudflare Web Analytics 统计访问次数、页面浏览量和加载性能，不使用 Cookie，不收集模型文件或搭建方案。离线版不加载统计脚本。": "The online edition uses Cloudflare Web Analytics to measure visits, page views and loading performance without cookies. It does not collect model files or project data. The offline edition does not load analytics scripts.",
   "模型文件不上传。": "Model files stay local. ",
   "你选择的模型文件夹只在你的浏览器里读取，不会上传到任何服务器。为加快下次显示，简化后的预览网格会缓存在本机浏览器的存储空间里。": "Your selected model folder is read locally and is never uploaded. Simplified preview meshes may be cached in this browser’s storage to speed up future previews.",
   "方案保存在本机。": "Projects stay on your device. ",
@@ -606,6 +608,10 @@ export const en: Record<string, string> = {
   "文件齐全，所有规格和打印导出都可以使用。": "All files present. Every size and print export is available.",
   "另有 {0} 个重复副本，已自动使用与官方文件一致的那份。": "{0} duplicate copies found; the one matching the official file is used.",
   "重复副本（未使用）：": "Duplicate copy (not used): ",
+  "浏览器无法读取这个文件夹里的某个名称或路径（常见于双击打开的离线页面，或名称里有特殊字符）。请点下面的「改用兼容方式选择文件夹」重试。": "The browser could not read a name or path in this folder (common on an offline page opened by double-click, or when a name has special characters). Click \u201cChoose folder (compatible mode)\u201d below to retry.",
+  "浏览器没有权限读取这个文件夹。请选解压好的模型文件夹本身（不要选桌面、下载这类系统文件夹），或点下面的「改用兼容方式选择文件夹」重试。": "The browser has no permission to read this folder. Choose the extracted model folder itself (not a system folder like Desktop or Downloads), or click \u201cChoose folder (compatible mode)\u201d below.",
+  "改用兼容方式选择文件夹": "Choose folder (compatible mode)",
+  "浏览器可能弹出「要上传 N 个文件吗？」，点「上传」即可：这只是让网页读取文件，文件不会离开你的电脑。": "Your browser may ask \u201cUpload N files?\u201d. Click Upload: it only lets the page read the files; nothing leaves your computer.",
   "{0} 个文件名与本工具对照的版本不同，已按相近名称匹配": "{0} file names differ from the version this tool was built against; matched by similar name",
   "你的模型包可能是另一批次（例如 Runner Slide / Runner Slides）。3D 显示和打包可以正常使用；如果新版文件里的零件数量有变化，打印份数请以说明书为准。": "Your model pack may be a different release (e.g. Runner Slide vs Runner Slides). 3D preview and packaging work normally; if a newer file contains a different number of pieces, follow the manual for print quantities."
 };

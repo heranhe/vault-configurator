@@ -1,7 +1,7 @@
 import { t } from '../i18n';
 import { useEffect, useRef, useState } from 'react';
 
-const UPDATED = '2026-10-23';
+const UPDATED = '2026-10-24';
 
 /** 免责声明与隐私说明。在线版和离线版共用；内容改动时同步更新 UPDATED。 */
 function LegalDialog({ onClose }: { onClose: () => void }) {
@@ -49,9 +49,10 @@ function LegalDialog({ onClose }: { onClose: () => void }) {
       <section>
         <h3>{t("隐私说明")}</h3>
         <ul>
-          <li><b>{t("不收集个人信息。")}</b>{t("无需注册账号，不收集姓名、联系方式等个人信息；没有广告和第三方统计代码。")}</li>
+          <li><b>{t("不收集个人信息。")}</b>{t("无需注册账号，不收集姓名、联系方式等个人信息；没有广告。")}</li>
           <li><b>{t("模型文件不上传。")}</b>{t("你选择的模型文件夹只在你的浏览器里读取，不会上传到任何服务器。为加快下次显示，简化后的预览网格会缓存在本机浏览器的存储空间里。")}</li>
           <li><b>{t("方案保存在本机。")}</b>{t("搭建方案和配色自动保存在当前浏览器里，不会上传；清除该网站的浏览器数据即可删除。导出的 CSV 和打包文件直接保存到你的电脑。")}</li>
+          {import.meta.env.MODE !== 'offline' && <li><b>{t("访问统计。")}</b>{t("在线版使用 Cloudflare Web Analytics 统计访问次数、页面浏览量和加载性能，不使用 Cookie，不收集模型文件或搭建方案。离线版不加载统计脚本。")}</li>}
           <li><b>{t("网站托管。")}</b>{t("在线版托管在 Cloudflare Pages，访问时 Cloudflare 作为托管服务商会按其隐私政策处理 IP 地址、浏览器类型等必要的访问日志。本工具本身不会向任何服务器发送你的方案或模型数据。离线版不联网，不涉及此项。")}</li>
         </ul>
       </section>

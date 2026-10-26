@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { catalogSize, resolveFile } from '../core/catalog';
 import { clearMeshCache, onLoadProgress } from '../models/loader';
-import { connectPath, disconnectPath, fromDrop, pickFolder, type ImportProgress, type ModelSource, type OnImportProgress } from '../models/source';
+import { connectPath, disconnectPath, fromDrop, importErrorMessage, isFileProtocol, pickFolder, type ImportProgress, type ModelSource, type OnImportProgress } from '../models/source';
 import { sourceIndex } from '../models/source-index';
 import { requiredPaths } from '../core/required';
 import { useStore } from '../store';
@@ -50,6 +50,7 @@ export function SourceDialog() {
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [over, setOver] = useState(false);
+  const [compatHint, setCompatHint] = useState(false); // 选择文件夹失败后，提示改用兼容方式
 
   useEffect(() => {
     if (!busy) return;
@@ -71,6 +72,7 @@ export function SourceDialog() {
       setElapsed(0);
       setProgress({ phase: selecting ? 'selecting' : 'scanning', discovered: 0, completed: 0, failed: 0 });
       setError(null);
+      setCompatHint(false);
     });
     try {
       const next = await fn((p) => {
@@ -90,7 +92,10 @@ export function SourceDialog() {
         ? tf('已连接「{0}」：需要的 {1} 个模型识别了 {2} 个，缺少 {3} 个', [next.name, report.required, report.found, report.missing.length])
         : tf('已连接「{0}」：需要的 {1} 个模型文件齐全', [next.name, report.required]), report.missing.length ? 'error' : 'info');
     } catch (e) {
-      if ((e as Error).name !== 'AbortError') setError((e as Error).message);
+      if ((e as Error).name !== 'AbortError') {
+        setError(importErrorMessage(e as Error));
+        setCompatHint(true);
+      }
       setProgress(null);
     } finally {
       running.current = null;
@@ -148,6 +153,7 @@ export function SourceDialog() {
             {t(busy ? progress?.phase === 'selecting' ? '等待选择文件夹…' : '正在读取，请稍候…' : '把整个模型文件夹拖到这里，或点击选择文件夹')}
           </button>
           <div className="muted small source-hint">{t("保留原有目录结构即可，会自动读取所有子文件夹，无需逐个选择模型文件。")}</div>
+          {isFileProtocol() && <div className="muted small source-hint">{t("浏览器可能弹出「要上传 N 个文件吗？」，点「上传」即可：这只是让网页读取文件，文件不会离开你的电脑。")}</div>}
         </div>
 
         {progress && (
@@ -168,6 +174,11 @@ export function SourceDialog() {
         )}
 
         {error && <div className="bad-text">{t(error)}</div>}
+        {error && compatHint && (
+          <button type="button" className="pill pill-yellow compat-retry" disabled={busy} onClick={() => run((onProgress, signal) => pickFolder(onProgress, signal, { compat: true }), true)}>
+            {t("改用兼容方式选择文件夹")}
+          </button>
+        )}
 
         {report && (
           <div className={`source-summary ${report.missing.length ? 'warn' : 'ok'}`} role="status">

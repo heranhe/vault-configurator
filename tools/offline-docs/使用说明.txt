@@ -15,6 +15,8 @@ VAULT 配置器 · 离线版 / VAULT Configurator · Offline
    选择你自己购买的 VAULT 3D 模型文件夹（也可以直接把文件夹拖进去）。
    不导入就只能用 4 款体验单元，也无法导出打印文件。
    模型文件只在你的电脑上读取，不会上传。
+   浏览器若弹出「要上传 N 个文件吗？」，点「上传」即可，
+   这只是让网页读取文件，不会真的上传。
 
 3. 开始使用
    点左侧卡片添加单元，连续点击一层层往上叠；底部会自动生成打印清单。
@@ -35,6 +37,8 @@ VAULT 配置器 · 离线版 / VAULT Configurator · Offline
    and select the VAULT 3D model folder you bought (or drag it onto it).
    Without it you only get 4 demo units and cannot export print files.
    Model files are read on your computer only and are never uploaded.
+   If the browser asks "Upload N files?", click Upload. It only lets
+   the page read the files; nothing is actually uploaded.
 
 3. Start building
    Click a card on the left to add a unit; keep clicking to stack upward.

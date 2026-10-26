@@ -114,10 +114,18 @@ function waitForFileAPI<T>(task: Promise<T>, signal: AbortSignal | undefined, la
 
 function scanner(onProgress?: OnImportProgress, signal?: AbortSignal) {
   const pending: PendingFile[] = [];
+  const errors: { path: string; error: unknown }[] = [];
   let lastYield = performance.now();
   return {
     pending,
+    errors,
     signal,
+    /** 某个子文件夹读不了（名称 / 路径浏览器不认等）：记下来继续读其他的，不让整个导入失败；取消和超时照常中断 */
+    fail(path: string, error: unknown) {
+      const name = (error as Error | undefined)?.name;
+      if (name === 'AbortError' || name === 'TimeoutError') throw error;
+      errors.push({ path, error });
+    },
     async visit(path: string, read?: () => Promise<File>) {
       checkAbort(signal);
       if (read) pending.push({ path, read });
@@ -129,9 +137,11 @@ function scanner(onProgress?: OnImportProgress, signal?: AbortSignal) {
 type Scanner = ReturnType<typeof scanner>;
 
 async function walk(dir: DirHandle, prefix: string, scan: Scanner) {
-  const iterator = dir.values()[Symbol.asyncIterator]();
+  let iterator: AsyncIterator<FileSystemHandle>;
+  try { iterator = dir.values()[Symbol.asyncIterator](); } catch (error) { return scan.fail(prefix, error); }
   while (true) {
-    const next = await waitForFileAPI(iterator.next(), scan.signal, `扫描 ${prefix} `);
+    let next: IteratorResult<FileSystemHandle>;
+    try { next = await waitForFileAPI(iterator.next(), scan.signal, `扫描 ${prefix} `); } catch (error) { return scan.fail(prefix, error); }
     if (next.done) break;
     const h = next.value;
     if (h.name.startsWith('.')) continue;
@@ -141,11 +151,11 @@ async function walk(dir: DirHandle, prefix: string, scan: Scanner) {
   }
 }
 
-async function readFiles(pending: PendingFile[], name: string, onProgress?: OnImportProgress, signal?: AbortSignal): Promise<ModelSource | null> {
+async function readFiles(pending: PendingFile[], name: string, onProgress?: OnImportProgress, signal?: AbortSignal, unreadable: string[] = []): Promise<ModelSource | null> {
   checkAbort(signal);
   if (!pending.length) return null;
   const files = new Map<string, SourceFile>();
-  const failed: string[] = [];
+  const failed: string[] = [...unreadable];
   const total = pending.length;
   onProgress?.({ phase: 'reading', discovered: total, total, completed: 0, current: pending[0].path, failed: 0 });
   await pause();
@@ -174,17 +184,39 @@ async function readFiles(pending: PendingFile[], name: string, onProgress?: OnIm
   return source;
 }
 
-/** 支持目录选择 API 的浏览器直接选择，否则使用 webkitdirectory（包括 Safari）。 */
-export async function pickFolder(onProgress?: OnImportProgress, signal?: AbortSignal): Promise<ModelSource | null> {
+/**
+ * 双击 HTML 打开（file://）的离线版：页面来源是 null，Chrome / Edge 的目录选择 API（showDirectoryPicker）
+ * 在这种页面上无法为文件夹里的路径生成合法地址，会报 EncodingError：「A URI supplied to the API was malformed…」。
+ * 所以 file:// 一律用 <input webkitdirectory>（Chrome / Edge / Safari / Firefox 都支持）。
+ */
+export const isFileProtocol = () => globalThis.location?.protocol === 'file:';
+
+/** 导入失败时给用户看的原因和建议；浏览器自己的英文报错对用户没用 */
+export function importErrorMessage(error: Error) {
+  switch (error.name) {
+    case 'EncodingError':
+      return '浏览器无法读取这个文件夹里的某个名称或路径（常见于双击打开的离线页面，或名称里有特殊字符）。请点下面的「改用兼容方式选择文件夹」重试。';
+    case 'SecurityError':
+    case 'NotAllowedError':
+    case 'NotReadableError':
+      return '浏览器没有权限读取这个文件夹。请选解压好的模型文件夹本身（不要选桌面、下载这类系统文件夹），或点下面的「改用兼容方式选择文件夹」重试。';
+    default:
+      return error.message;
+  }
+}
+
+/** 支持目录选择 API 的浏览器直接选择（file:// 除外），否则使用 webkitdirectory（包括 Safari）。 */
+export async function pickFolder(onProgress?: OnImportProgress, signal?: AbortSignal, options: { compat?: boolean } = {}): Promise<ModelSource | null> {
   onProgress?.({ phase: 'selecting', discovered: 0, completed: 0, failed: 0,
     message: '请选择文件夹。浏览器返回目录后，开始统计文件数量。' });
   const w = window as unknown as { showDirectoryPicker?: (o?: object) => Promise<DirHandle> };
-  if (w.showDirectoryPicker) {
+  if (w.showDirectoryPicker && !options.compat && !isFileProtocol()) {
     const dir = await waitForFileAPI(w.showDirectoryPicker({ id: 'vault-models', mode: 'read' }), signal, '选择文件夹', 120_000);
     const scan = scanner(onProgress, signal);
     await scan.visit(dir.name);
     await walk(dir, dir.name, scan);
-    return readFiles(scan.pending, dir.name, onProgress, signal);
+    if (!scan.pending.length && scan.errors.length) throw scan.errors[0].error; // 根目录就读不了：报真实原因，不说成「没有 STL」
+    return readFiles(scan.pending, dir.name, onProgress, signal, scan.errors.map((e) => e.path));
   }
   const list = await new Promise<File[] | null>((resolve, reject) => {
     const input = Object.assign(document.createElement('input'), { type: 'file', webkitdirectory: true, multiple: true });
@@ -229,7 +261,8 @@ async function walkEntry(entry: FileSystemEntry, scan: Scanner): Promise<void> {
     await scan.visit(path);
     const reader = (entry as FileSystemDirectoryEntry).createReader();
     while (true) {
-      const entries = await waitForFileAPI(new Promise<FileSystemEntry[]>((resolve, reject) => reader.readEntries(resolve, reject)), scan.signal, `扫描 ${path} `);
+      let entries: FileSystemEntry[];
+      try { entries = await waitForFileAPI(new Promise<FileSystemEntry[]>((resolve, reject) => reader.readEntries(resolve, reject)), scan.signal, `扫描 ${path} `); } catch (error) { return scan.fail(path, error); }
       if (!entries.length) break;
       for (const child of entries) await walkEntry(child, scan);
     }
@@ -260,5 +293,6 @@ export async function fromDrop(dt: DataTransfer, onProgress?: OnImportProgress, 
     else if (item.entry) { names.push(item.entry.name); await walkEntry(item.entry, scan); }
     else if (item.file && isStl(item.file.name)) { const file = item.file; names.push(file.name); await scan.visit(file.name, async () => file); }
   }
-  return readFiles(scan.pending, names.length === 1 ? names[0] : `${names.length} 个文件 / 文件夹`, onProgress, signal);
+  if (!scan.pending.length && scan.errors.length) throw scan.errors[0].error;
+  return readFiles(scan.pending, names.length === 1 ? names[0] : `${names.length} 个文件 / 文件夹`, onProgress, signal, scan.errors.map((e) => e.path));
 }
